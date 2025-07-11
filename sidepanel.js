@@ -1,9 +1,3 @@
-<!-- ======================================================================= -->
-<!-- FILE: sidepanel.js                                                      -->
-<!-- This script controls the behavior of the sidepanel.html file. It        -->
-<!-- listens for messages from the background script and updates the UI.     -->
-<!-- ======================================================================= -->
-
 ```javascript
 // sidepanel.js
 
