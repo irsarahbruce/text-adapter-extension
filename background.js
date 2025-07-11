@@ -9,7 +9,7 @@
 // background.js
 
 // IMPORTANT: Replace this with the actual URL of your deployed DigitalOcean API
-// **FIXED:** The URL is now a proper JavaScript string.
+// **FIXED:** The URL is now a proper JavaScript string without Markdown formatting.
 const API_URL = "[https://monkfish-app-wbxiw.ondigitalocean.app/adapt](https://monkfish-app-wbxiw.ondigitalocean.app/adapt)"; 
 
 // 1. Create the Context Menu
