@@ -9,7 +9,7 @@
 // background.js
 
 // IMPORTANT: Replace this with the actual URL of your deployed DigitalOcean API
-const API_URL = "[https://text-adapter-api-abcd1.ondigitalocean.app/adapt](https://text-adapter-api-abcd1.ondigitalocean.app/adapt)"; 
+const API_URL = "https://monkfish-app-wbxiw.ondigitalocean.app/"; 
 
 // 1. Create the Context Menu
 // This menu item will only appear when the user has selected text.
