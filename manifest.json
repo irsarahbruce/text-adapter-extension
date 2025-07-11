@@ -1,3 +1,7 @@
+/* ======================================================================= */
+/* FILE: manifest.json                                                     */
+/* This version adds the 'content_security_policy' to allow Tailwind CSS.  */
+/* ======================================================================= */
 {
   "manifest_version": 3,
   "name": "Text Adapter AI",
@@ -16,6 +20,10 @@
     "default_path": "sidepanel.html"
   },
   "host_permissions": [
-    "https://text-adapter-api-abcd1.ondigitalocean.app/*"
-  ]
+    "https://monkfish-app-wbxiw.ondigitalocean.app/*"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; script-src-elem 'self' https://cdn.tailwindcss.com;"
+  }
 }
+```javascript
