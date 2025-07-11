@@ -1,7 +1,4 @@
-/* ======================================================================= */
-/* FILE: manifest.json                                                     */
-/* This version adds the 'content_security_policy' to allow Tailwind CSS.  */
-/* ======================================================================= */
+
 {
   "manifest_version": 3,
   "name": "Text Adapter AI",
@@ -26,4 +23,4 @@
     "extension_pages": "script-src 'self'; object-src 'self'; script-src-elem 'self' https://cdn.tailwindcss.com;"
   }
 }
-```javascript
+
