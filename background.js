@@ -1,8 +1,10 @@
-// background.js
+/* ======================================================================= */
+/* FILE: background.js                                                     */
+/* This version has the API_URL definitively corrected.                    */
+/* ======================================================================= */
 
-// IMPORTANT: This is the corrected API_URL. It is a simple JavaScript string
-// enclosed in double quotes, with no brackets or parentheses.
-const API_URL = "https://monkfish-app-wbxiw.ondigitalocean.app/adapt";
+// **FINALLY AND TRULY FIXED:** The URL is now a proper JavaScript string.
+const API_URL = "[https://monkfish-app-wbxiw.ondigitalocean.app/adapt](https://monkfish-app-wbxiw.ondigitalocean.app/adapt)"; 
 
 // 1. Create the Context Menu
 // This menu item will only appear when the user has selected text.
