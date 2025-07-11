@@ -9,7 +9,8 @@
 // background.js
 
 // IMPORTANT: Replace this with the actual URL of your deployed DigitalOcean API
-const API_URL = "https://monkfish-app-wbxiw.ondigitalocean.app/"; 
+// I have corrected the URL format based on your screenshot.
+const API_URL = "[https://monkfish-app-wbxiw.ondigitalocean.app/adapt](https://monkfish-app-wbxiw.ondigitalocean.app/adapt)"; 
 
 // 1. Create the Context Menu
 // This menu item will only appear when the user has selected text.
@@ -62,6 +63,7 @@ async function processText(text, action, tabId) {
 
     if (!response.ok) {
         const errorData = await response.json();
+        // **FIXED:** Moved the 'throw' statement to its own line for correct syntax.
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
     }
 
