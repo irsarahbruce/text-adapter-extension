@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Text Adapter AI",
+  "version": "1.0",
+  "description": "Adapts selected text to be more accessible.",
+  "permissions": [
+    "activeTab",
+    "contextMenus",
+    "storage",
+    "sidePanel"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "host_permissions": [
+    "https://text-adapter-api-abcd1.ondigitalocean.app/*"
+  ]
+}
