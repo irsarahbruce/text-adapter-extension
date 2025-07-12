@@ -38,8 +38,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } else if (message.type === 'error') {
         showState('error', message.message);
     } else if (message.type === 'result') {
+        // This is the success path
         adaptedTextElement.textContent = message.content;
-        showState('result');
+        showState('result'); // Ensure this calls 'result'
     }
 });
 
