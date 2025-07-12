@@ -60,7 +60,6 @@ async function processText(text, action, tabId) {
     chrome.runtime.sendMessage({ type: 'result', content: data.adaptedText });
 
     // THEN, attempt to save the state for the next request.
-    // If this fails, it will be logged but won't prevent the user from seeing the result.
     await chrome.storage.session.set({ 
         originalText: text, 
         currentLexile: data.currentLexile 
