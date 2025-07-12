@@ -1,6 +1,6 @@
 /* ======================================================================= */
 /* FILE: background.js                                                     */
-/* This is the complete and corrected version.                             */
+/* This is the complete and final corrected version.                       */
 /* ======================================================================= */
 
 const API_URL = "https://monkfish-app-wbxiw.ondigitalocean.app/adapt";
@@ -17,34 +17,31 @@ chrome.runtime.onInstalled.addListener(() => {
 // 2. Listen for a click on our Context Menu item
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === "adapt-text" && info.selectionText) {
-    // When clicked, call the function to process the selected text
     processText(info.selectionText, 'initial', tab.id);
   }
 });
 
 // 3. Main function to process text
 async function processText(text, action, tabId) {
-  // First, open the side panel to show the user something is happening
-  await chrome.sidePanel.open({ tabId });
+  // Only open the side panel on the initial request.
+  if (action === 'initial') {
+    await chrome.sidePanel.open({ tabId });
+  }
   
   // Send a "loading" message to the side panel immediately
   chrome.runtime.sendMessage({ type: 'loading' });
 
   try {
-    // Prepare the data to send to our API
     const requestBody = {
       text: text,
       action: action,
     };
     
-    // If the action is not 'initial', it means we are adjusting the level.
-    // We need to retrieve the current lexile score we saved earlier.
     if (action !== 'initial') {
         const data = await chrome.storage.session.get(['currentLexile']);
         requestBody.currentLexile = data.currentLexile;
     }
 
-    // Make the API call
     const response = await fetch(API_URL, {
       method: "POST",
       headers: {
@@ -60,39 +57,30 @@ async function processText(text, action, tabId) {
 
     const data = await response.json();
 
-    // Save the original text and the new lexile score in session storage
-    // so we can use it for the "Simpler" / "More Detailed" buttons later.
     await chrome.storage.session.set({ 
         originalText: text, 
         currentLexile: data.currentLexile 
     });
 
-    // Send the successful result to the side panel
     chrome.runtime.sendMessage({ type: 'result', content: data.adaptedText });
 
   } catch (error) {
     console.error("Error calling API:", error);
-    // Send an error message to the side panel
     chrome.runtime.sendMessage({ type: 'error', message: error.message });
   }
 }
 
 // 4. Listen for messages from the side panel (e.g., when a button is clicked)
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    // Check if the message is a request to adapt the text further
     if (message.type === 'adapt-text') {
-        // Retrieve the original text we saved
         chrome.storage.session.get(['originalText'], async (result) => {
             if (result.originalText) {
-                // Get the current active tab to open the side panel against
                 const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
                 if (tab) {
-                    // Call the main processing function again with the new action
                     processText(result.originalText, message.action, tab.id);
                 }
             }
         });
-        // Return true to indicate you will send a response asynchronously
         return true; 
     }
 });
