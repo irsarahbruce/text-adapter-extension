@@ -1,7 +1,4 @@
-```javascript
-// sidepanel.js
 
-// Get references to all the HTML elements we'll need to interact with
 const loadingIndicator = document.getElementById('loading');
 const contentDisplay = document.getElementById('content-display');
 const adaptedTextElement = document.getElementById('adapted-text');
