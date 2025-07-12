@@ -1,13 +1,11 @@
 /* ======================================================================= */
 /* FILE: background.js                                                     */
-/* This version has the API_URL definitively corrected.                    */
+/* This is the complete and corrected version.                             */
 /* ======================================================================= */
 
-// **FINALLY AND TRULY FIXED:** The URL is now a proper JavaScript string.
-const API_URL = "https://monkfish-app-wbxiw.ondigitalocean.app/adapt"; 
+const API_URL = "https://monkfish-app-wbxiw.ondigitalocean.app/adapt";
 
 // 1. Create the Context Menu
-// This menu item will only appear when the user has selected text.
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: "adapt-text",
@@ -84,11 +82,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // Check if the message is a request to adapt the text further
     if (message.type === 'adapt-text') {
         // Retrieve the original text we saved
-        chrome.storage.session.get(['originalText'], (result) => {
+        chrome.storage.session.get(['originalText'], async (result) => {
             if (result.originalText) {
-                // Call the main processing function again with the new action
-                processText(result.originalText, message.action, sender.tab.id);
+                // Get the current active tab to open the side panel against
+                const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+                if (tab) {
+                    // Call the main processing function again with the new action
+                    processText(result.originalText, message.action, tab.id);
+                }
             }
         });
+        // Return true to indicate you will send a response asynchronously
+        return true; 
     }
 });
