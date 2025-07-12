@@ -28,7 +28,6 @@ async function processText(text, action, tabId) {
     await chrome.sidePanel.open({ tabId });
   }
   
-  // Send a "loading" message to the side panel immediately
   chrome.runtime.sendMessage({ type: 'loading' });
 
   try {
@@ -57,15 +56,17 @@ async function processText(text, action, tabId) {
 
     const data = await response.json();
 
+    // Send the successful result to the side panel FIRST.
+    chrome.runtime.sendMessage({ type: 'result', content: data.adaptedText });
+
+    // THEN, attempt to save the state for the next request.
     await chrome.storage.session.set({ 
         originalText: text, 
         currentLexile: data.currentLexile 
     });
 
-    chrome.runtime.sendMessage({ type: 'result', content: data.adaptedText });
-
   } catch (error) {
-    console.error("Error calling API:", error);
+    console.error("Error during extension workflow:", error);
     chrome.runtime.sendMessage({ type: 'error', message: error.message });
   }
 }
