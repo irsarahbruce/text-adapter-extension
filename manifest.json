@@ -19,6 +19,6 @@
     "https://monkfish-app-wbxiw.ondigitalocean.app/*"
   ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self' https://cdn.tailwindcss.com;"
+    "extension_pages": "script-src 'self'; script-src-elem 'self' https://cdn.tailwindcss.com;"
   }
 }
