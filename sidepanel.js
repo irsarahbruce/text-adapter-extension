@@ -1,12 +1,10 @@
-// sidepanel.js (Final version to render HTML)
-
 const loadingIndicator = document.getElementById('loading');
 const contentDisplay = document.getElementById('content-display');
 const adaptedTextElement = document.getElementById('adapted-text');
 const errorMessage = document.getElementById('error-message');
 const errorText = document.getElementById('error-text');
 const levelDownButton = document.getElementById('level-down');
-const levelUpButton = document.getElementById('level-up');
+const undoButton = document.getElementById('undo-button'); // Changed from levelUpButton
 const copyButton = document.getElementById('copy-text');
 
 function showState(state, data = {}) {
@@ -15,7 +13,7 @@ function showState(state, data = {}) {
     errorMessage.classList.add('hidden');
     
     levelDownButton.disabled = true;
-    levelUpButton.disabled = true;
+    undoButton.disabled = true; // Changed from levelUpButton
     copyButton.disabled = true;
 
     if (state === 'loading') {
@@ -26,8 +24,12 @@ function showState(state, data = {}) {
     } else if (state === 'result') {
         contentDisplay.classList.remove('hidden');
         levelDownButton.disabled = false;
-        levelUpButton.disabled = false;
         copyButton.disabled = false;
+        
+        // Enable Undo button only if there's a history to undo to
+        if (data.historyCount > 1) {
+            undoButton.disabled = false;
+        }
 
         if (data.atMinimum) {
             levelDownButton.disabled = true;
@@ -44,8 +46,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } else if (message.type === 'error') {
         showState('error', { message: message.message });
     } else if (message.type === 'result') {
-        // --- THIS IS THE KEY CHANGE ---
-        // Use .innerHTML to render the formatted text instead of .textContent
         adaptedTextElement.innerHTML = message.content;
         showState('result', message);
     }
@@ -55,25 +55,18 @@ levelDownButton.addEventListener('click', () => {
     chrome.runtime.sendMessage({ type: 'adapt-text', action: 'simpler' });
 });
 
-levelUpButton.addEventListener('click', () => {
-    chrome.runtime.sendMessage({ type: 'adapt-text', action: 'detailed' });
+// Changed listener to the Undo button
+undoButton.addEventListener('click', () => {
+    chrome.runtime.sendMessage({ type: 'adapt-text', action: 'undo' });
 });
 
 copyButton.addEventListener('click', () => {
-    // .textContent will copy the clean text without the HTML tags, which is ideal.
     const textToCopy = adaptedTextElement.textContent;
     navigator.clipboard.writeText(textToCopy).then(() => {
         const originalText = copyButton.textContent;
         copyButton.textContent = 'Copied!';
-        copyButton.classList.remove('bg-blue-500', 'hover:bg-blue-600');
-        copyButton.classList.add('bg-green-500');
-        setTimeout(() => {
-            copyButton.textContent = originalText;
-            copyButton.classList.remove('bg-green-500');
-            copyButton.classList.add('bg-blue-500', 'hover:bg-blue-600');
-        }, 2000);
+        setTimeout(() => { copyButton.textContent = originalText; }, 2000);
     }).catch(err => console.error('Failed to copy text: ', err));
 });
 
-// Set an initial state by setting the innerHTML of the adapted text element.
 adaptedTextElement.innerHTML = '<p>Select some text on a page, right-click, and choose "Adapt Text with AI" to get started.</p>';
