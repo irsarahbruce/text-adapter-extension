@@ -1,11 +1,5 @@
-/* ======================================================================= */
-/* FILE: background.js                                                     */
-/* This is the complete and final corrected version.                       */
-/* ======================================================================= */
-
 const API_URL = "https://monkfish-app-wbxiw.ondigitalocean.app/adapt";
 
-// 1. Create the Context Menu
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: "adapt-text",
@@ -14,16 +8,15 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
-// 2. Listen for a click on our Context Menu item
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === "adapt-text" && info.selectionText) {
+    // Clear any previous history and start fresh
+    chrome.storage.session.set({ adaptationHistory: [] });
     processText(info.selectionText, 'initial', tab.id);
   }
 });
 
-// 3. Main function to process text
 async function processText(text, action, tabId) {
-  // Only open the side panel on the initial request.
   if (action === 'initial') {
     await chrome.sidePanel.open({ tabId });
   }
@@ -31,21 +24,17 @@ async function processText(text, action, tabId) {
   chrome.runtime.sendMessage({ type: 'loading' });
 
   try {
-    const requestBody = {
-      text: text,
-      action: action,
-    };
-    
+    const requestBody = { text, action };
+    const sessionData = await chrome.storage.session.get(['currentLexile', 'adaptationHistory']);
+    const history = sessionData.adaptationHistory || [];
+
     if (action !== 'initial') {
-        const data = await chrome.storage.session.get(['currentLexile']);
-        requestBody.currentLexile = data.currentLexile;
+        requestBody.currentLexile = sessionData.currentLexile;
     }
 
     const response = await fetch(API_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(requestBody),
     });
 
@@ -56,13 +45,26 @@ async function processText(text, action, tabId) {
 
     const data = await response.json();
 
-    // Send the successful result to the side panel FIRST.
-    chrome.runtime.sendMessage({ type: 'result', content: data.adaptedText });
+    // Add the new result to the history
+    if (action !== 'initial') {
+        history.push({ content: data.adaptedText, lexile: data.currentLexile });
+    } else {
+        // For initial, history starts with original text and the new result
+        history.push({ content: `<p>${text}</p>`, lexile: data.currentLexile });
+        history.push({ content: data.adaptedText, lexile: data.currentLexile });
+    }
 
-    // THEN, attempt to save the state for the next request.
+    chrome.runtime.sendMessage({ 
+        type: 'result', 
+        content: data.adaptedText,
+        atMinimum: data.atMinimum,
+        historyCount: history.length
+    });
+
     await chrome.storage.session.set({ 
         originalText: text, 
-        currentLexile: data.currentLexile 
+        currentLexile: data.currentLexile,
+        adaptationHistory: history
     });
 
   } catch (error) {
@@ -71,9 +73,30 @@ async function processText(text, action, tabId) {
   }
 }
 
-// 4. Listen for messages from the side panel (e.g., when a button is clicked)
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.type === 'adapt-text') {
+    if (message.type === 'adapt-text' && message.action === 'undo') {
+        // Handle Undo action
+        chrome.storage.session.get(['adaptationHistory', 'originalText'], (result) => {
+            let history = result.adaptationHistory || [];
+            if (history.length > 1) {
+                history.pop(); // Remove the current state
+                const prevState = history[history.length - 1]; // Get the previous state
+                chrome.storage.session.set({
+                    adaptationHistory: history,
+                    currentLexile: prevState.lexile
+                }, () => {
+                    chrome.runtime.sendMessage({
+                        type: 'result',
+                        content: prevState.content,
+                        atMinimum: false, // It can't be at minimum if we just undid
+                        historyCount: history.length
+                    });
+                });
+            }
+        });
+
+    } else if (message.type === 'adapt-text') {
+        // Handle "Simpler" action
         chrome.storage.session.get(['originalText'], async (result) => {
             if (result.originalText) {
                 const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -82,6 +105,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 }
             }
         });
-        return true; 
     }
+    return true; 
 });
