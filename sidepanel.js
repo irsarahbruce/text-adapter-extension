@@ -1,3 +1,4 @@
+// sidepanel.js (Final version to render HTML)
 
 const loadingIndicator = document.getElementById('loading');
 const contentDisplay = document.getElementById('content-display');
@@ -8,8 +9,7 @@ const levelDownButton = document.getElementById('level-down');
 const levelUpButton = document.getElementById('level-up');
 const copyButton = document.getElementById('copy-text');
 
-// Function to manage UI states (loading, error, result)
-function showState(state, message = '') {
+function showState(state, data = {}) {
     loadingIndicator.classList.add('hidden');
     contentDisplay.classList.add('hidden');
     errorMessage.classList.add('hidden');
@@ -21,46 +21,48 @@ function showState(state, message = '') {
     if (state === 'loading') {
         loadingIndicator.classList.remove('hidden');
     } else if (state === 'error') {
-        errorText.textContent = message;
+        errorText.textContent = data.message;
         errorMessage.classList.remove('hidden');
     } else if (state === 'result') {
         contentDisplay.classList.remove('hidden');
         levelDownButton.disabled = false;
         levelUpButton.disabled = false;
         copyButton.disabled = false;
+
+        if (data.atMinimum) {
+            levelDownButton.disabled = true;
+            levelDownButton.textContent = 'Simplest';
+        } else {
+            levelDownButton.textContent = 'Simpler';
+        }
     }
 }
 
-// 1. Listen for messages from the background script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'loading') {
         showState('loading');
     } else if (message.type === 'error') {
-        showState('error', message.message);
+        showState('error', { message: message.message });
     } else if (message.type === 'result') {
-        // This is the success path
-        adaptedTextElement.textContent = message.content;
-        showState('result'); // Ensure this calls 'result'
+        // --- THIS IS THE KEY CHANGE ---
+        // Use .innerHTML to render the formatted text instead of .textContent
+        adaptedTextElement.innerHTML = message.content;
+        showState('result', message);
     }
 });
 
-// 2. Add event listeners for the buttons
 levelDownButton.addEventListener('click', () => {
-    // When clicked, send a message to the background script to get a simpler version
     chrome.runtime.sendMessage({ type: 'adapt-text', action: 'simpler' });
 });
 
 levelUpButton.addEventListener('click', () => {
-    // Send a message to get a more detailed version
     chrome.runtime.sendMessage({ type: 'adapt-text', action: 'detailed' });
 });
 
 copyButton.addEventListener('click', () => {
+    // .textContent will copy the clean text without the HTML tags, which is ideal.
     const textToCopy = adaptedTextElement.textContent;
-    
-    // Use the Clipboard API to copy text
     navigator.clipboard.writeText(textToCopy).then(() => {
-        // Provide visual feedback to the user
         const originalText = copyButton.textContent;
         copyButton.textContent = 'Copied!';
         copyButton.classList.remove('bg-blue-500', 'hover:bg-blue-600');
@@ -70,24 +72,8 @@ copyButton.addEventListener('click', () => {
             copyButton.classList.remove('bg-green-500');
             copyButton.classList.add('bg-blue-500', 'hover:bg-blue-600');
         }, 2000);
-    }).catch(err => {
-        console.error('Failed to copy text: ', err);
-        // Fallback for older browsers or if permissions fail
-        // This is less reliable in extensions but good to have.
-        const textArea = document.createElement("textarea");
-        textArea.value = textToCopy;
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        try {
-            document.execCommand('copy');
-        } catch (err) {
-            console.error('Fallback copy failed', err);
-        }
-        document.body.removeChild(textArea);
-    });
+    }).catch(err => console.error('Failed to copy text: ', err));
 });
 
-// Set an initial state
-adaptedTextElement.textContent = 'Select some text on a page, right-click, and choose "Adapt Text with AI" to get started.';
-
+// Set an initial state by setting the innerHTML of the adapted text element.
+adaptedTextElement.innerHTML = '<p>Select some text on a page, right-click, and choose "Adapt Text with AI" to get started.</p>';
