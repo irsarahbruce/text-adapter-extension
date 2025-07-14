@@ -1,4 +1,3 @@
-
 {
   "manifest_version": 3,
   "name": "Text Adapter AI",
@@ -19,8 +18,7 @@
   "host_permissions": [
     "https://monkfish-app-wbxiw.ondigitalocean.app/*"
   ],
- "content_security_policy": {
-  "extension_pages": "script-src 'self'; script-src-elem 'self' https://cdn.tailwindcss.com;"
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' https://cdn.tailwindcss.com;"
+  }
 }
-}
-
