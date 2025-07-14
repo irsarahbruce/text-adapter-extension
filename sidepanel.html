@@ -4,58 +4,43 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Text Adapter</title>
-    <!-- We are using Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Custom styles for a better look and feel */
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        /* A simple spinning animation for the loading indicator */
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        .animate-spin {
-            animation: spin 1s linear infinite;
-        }
+        body { font-family: 'Inter', sans-serif; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .animate-spin { animation: spin 1s linear infinite; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 p-4">
     <div id="app" class="flex flex-col h-full">
         
-        <!-- Header Section -->
         <header class="pb-4 border-b border-slate-200">
             <h1 class="text-lg font-bold text-slate-700">Adapted Text</h1>
             <p class="text-sm text-slate-500">Your text, simplified.</p>
         </header>
 
-        <!-- Main Content Area -->
         <main class="flex-grow mt-4 overflow-y-auto">
-            <!-- Loading Indicator -->
             <div id="loading" class="flex justify-center items-center h-full hidden">
                 <div class="w-8 h-8 border-4 border-slate-200 border-t-slate-500 rounded-full animate-spin"></div>
             </div>
 
-            <!-- Error Message Display -->
             <div id="error-message" class="bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded-lg hidden">
                 <strong class="font-bold">Error:</strong>
                 <span id="error-text" class="block sm:inline"></span>
             </div>
             
-            <!-- Adapted Text Content -->
-            <div id="content-display" class="prose prose-slate max-w-none">
-                <p id="adapted-text" class="text-slate-600"></p>
+            <div id="content-display" class="prose prose-slate max-w-none text-base">
+                <div id="adapted-text"></div>
             </div>
         </main>
 
-        <!-- Footer / Controls -->
         <footer class="pt-4 mt-4 border-t border-slate-200">
             <div class="grid grid-cols-2 gap-2">
                 <button id="level-down" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
                     Simpler
                 </button>
-                <button id="level-up" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
-                    More Detailed
+                <button id="undo-button" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+                    Undo
                 </button>
             </div>
              <div class="grid grid-cols-1 gap-2 mt-2">
@@ -65,8 +50,6 @@
             </div>
         </footer>
     </div>
-
-    <!-- The JavaScript for the side panel -->
     <script src="sidepanel.js"></script>
 </body>
 </html>
