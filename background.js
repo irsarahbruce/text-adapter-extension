@@ -1,5 +1,10 @@
 const API_URL = "https://monkfish-app-wbxiw.ondigitalocean.app/adapt";
 
+// Store pending text to process when sidepanel is ready
+let pendingTextToProcess = null;
+let pendingAction = null;
+let pendingTabId = null;
+
 chrome.runtime.onInstalled.addListener(() => {
   console.log("Background script loaded");
   chrome.contextMenus.create({
@@ -11,22 +16,75 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === "adapt-text" && info.selectionText) {
-    // Open the side panel immediately without await - must be directly in response to user gesture
-    chrome.sidePanel.open({ tabId: tab.id });
+    // Store the text we need to process
+    pendingTextToProcess = info.selectionText;
+    pendingAction = 'initial';
+    pendingTabId = tab.id;
     
-    // Then clear history and process text
-    chrome.storage.session.set({ adaptationHistory: [] }, () => {
-      processText(info.selectionText, 'initial', tab.id);
-    });
+    // Clear previous history
+    chrome.storage.session.set({ adaptationHistory: [] });
+    
+    // Open the side panel immediately
+    chrome.sidePanel.open({ tabId: tab.id });
   }
+});
+
+// Listen for sidepanel ready signal
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    console.log("Received message:", message.type);
+    
+    if (message.type === 'sidepanel-ready') {
+        console.log("Sidepanel is ready, processing pending text:", pendingTextToProcess);
+        // Process any pending text when sidepanel signals it's ready
+        if (pendingTextToProcess) {
+            processText(pendingTextToProcess, pendingAction, pendingTabId);
+            pendingTextToProcess = null;
+            pendingAction = null;
+            pendingTabId = null;
+        }
+    } else if (message.type === 'adapt-text' && message.action === 'undo') {
+        // Handle Undo action
+        chrome.storage.session.get(['adaptationHistory', 'originalText'], (result) => {
+            let history = result.adaptationHistory || [];
+            if (history.length > 1) {
+                history.pop(); // Remove the current state
+                const prevState = history[history.length - 1]; // Get the previous state
+                chrome.storage.session.set({
+                    adaptationHistory: history,
+                    currentLexile: prevState.lexile
+                }, () => {
+                    chrome.runtime.sendMessage({
+                        type: 'result',
+                        content: prevState.content,
+                        atMinimum: false, // It can't be at minimum if we just undid
+                        historyCount: history.length
+                    });
+                });
+            }
+        });
+
+    } else if (message.type === 'adapt-text') {
+        // Handle "Simpler" action
+        chrome.storage.session.get(['originalText'], async (result) => {
+            if (result.originalText) {
+                const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+                if (tab) {
+                    processText(result.originalText, message.action, tab.id);
+                }
+            }
+        });
+    }
+    return true; 
 });
 
 async function processText(text, action, tabId) {
   console.log("Processing text:", action);
   
-  chrome.runtime.sendMessage({ type: 'loading' });
-
   try {
+    // Send loading state to sidepanel
+    chrome.runtime.sendMessage({ type: 'loading' })
+      .catch(err => console.log("Sending loading message failed, sidepanel might not be ready yet"));
+
     const requestBody = { text, action };
     const sessionData = await chrome.storage.session.get(['currentLexile', 'adaptationHistory']);
     const history = sessionData.adaptationHistory || [];
@@ -78,12 +136,17 @@ async function processText(text, action, tabId) {
         history.push({ content: data.adaptedText, lexile: data.currentLexile });
     }
 
-    chrome.runtime.sendMessage({ 
-        type: 'result', 
-        content: data.adaptedText,
-        atMinimum: data.atMinimum,
-        historyCount: history.length
-    });
+    // Try sending the message, catch and log any errors
+    try {
+      await chrome.runtime.sendMessage({ 
+          type: 'result', 
+          content: data.adaptedText,
+          atMinimum: data.atMinimum,
+          historyCount: history.length
+      });
+    } catch (error) {
+      console.error("Failed to send result message to sidepanel:", error);
+    }
 
     await chrome.storage.session.set({ 
         originalText: text, 
@@ -93,42 +156,7 @@ async function processText(text, action, tabId) {
 
   } catch (error) {
     console.error("Error during extension workflow:", error);
-    chrome.runtime.sendMessage({ type: 'error', message: error.message });
+    chrome.runtime.sendMessage({ type: 'error', message: error.message })
+      .catch(err => console.error("Failed to send error message to sidepanel"));
   }
 }
-
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.type === 'adapt-text' && message.action === 'undo') {
-        // Handle Undo action
-        chrome.storage.session.get(['adaptationHistory', 'originalText'], (result) => {
-            let history = result.adaptationHistory || [];
-            if (history.length > 1) {
-                history.pop(); // Remove the current state
-                const prevState = history[history.length - 1]; // Get the previous state
-                chrome.storage.session.set({
-                    adaptationHistory: history,
-                    currentLexile: prevState.lexile
-                }, () => {
-                    chrome.runtime.sendMessage({
-                        type: 'result',
-                        content: prevState.content,
-                        atMinimum: false, // It can't be at minimum if we just undid
-                        historyCount: history.length
-                    });
-                });
-            }
-        });
-
-    } else if (message.type === 'adapt-text') {
-        // Handle "Simpler" action
-        chrome.storage.session.get(['originalText'], async (result) => {
-            if (result.originalText) {
-                const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-                if (tab) {
-                    processText(result.originalText, message.action, tab.id);
-                }
-            }
-        });
-    }
-    return true; 
-});
