@@ -6,10 +6,20 @@
     <title>Text Adapter</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { font-family: 'Inter', sans-serif; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .animate-spin { animation: spin 1s linear infinite; }
-    </style>
+    body { font-family: 'Inter', sans-serif; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .animate-spin { animation: spin 1s linear infinite; }
+    
+    /* Add these new styles */
+    #adapted-text {
+        font-size: 18px !important; /* Increase from default */
+        line-height: 1.5 !important;
+    }
+    
+    #adapted-text p {
+        margin-bottom: 1em !important;
+    }
+</style>
 </head>
 <body class="bg-slate-50 text-slate-800 p-4">
     <div id="app" class="flex flex-col h-full">
