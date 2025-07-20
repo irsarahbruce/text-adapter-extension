@@ -18,10 +18,8 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 
 async function processText(text, action, tabId) {
   if (action === 'initial') {
-    await chrome.sidePanel.open({ 
-    tabId,
-    width: 400 // Request a wider panel
-});
+   await chrome.sidePanel.open({ tabId });
+
   }
   
   chrome.runtime.sendMessage({ type: 'loading' });
