@@ -2,10 +2,9 @@ const API_URL = "https://monkfish-app-wbxiw.ondigitalocean.app";
 let lastActionData = null; // Store data until the side panel is ready
 
 chrome.runtime.onInstalled.addListener(() => {
-  console.log("Background script loaded");
   chrome.contextMenus.create({
     id: "adapt-text",
-    title: "Rewrite with QuickRewriter", // <-- This line has been changed
+    title: "Rewrite with QuickRewriter",
     contexts: ["selection"],
   });
 });
@@ -14,7 +13,6 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === "adapt-text" && info.selectionText) {
     chrome.storage.session.set({ adaptationHistory: [] });
     chrome.sidePanel.open({ tabId: tab.id });
-    // Store the data and wait for the side panel to be ready
     lastActionData = { type: 'process-initial-text', text: info.selectionText, tabId: tab.id };
   }
 });
@@ -32,8 +30,7 @@ async function processText(text, action, tabId) {
 
   try {
     const requestBody = { text, action };
-    const sessionData = await chrome.storage.session.get(['currentLexile', 'adaptationHistory']);
-    let history = sessionData.adaptationHistory || [];
+    const sessionData = await chrome.storage.session.get(['currentLexile']);
     
     if (action !== 'initial') {
       requestBody.currentLexile = sessionData.currentLexile;
@@ -45,13 +42,13 @@ async function processText(text, action, tabId) {
       body: JSON.stringify(requestBody),
     });
 
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-    }
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
     const data = await response.json();
     console.log("Raw API response:", data);
+    
+    const historyResult = await chrome.storage.session.get(['adaptationHistory']);
+    let history = historyResult.adaptationHistory || [];
 
     if (action === 'initial') {
         history = [{ content: `<p>${text}</p>`, lexile: data.currentLexile }];
@@ -61,6 +58,7 @@ async function processText(text, action, tabId) {
     await sendMessageToSidePanel({ 
         type: 'result', 
         content: data.adaptedText,
+        dictionary: data.dictionary,
         atMinimum: data.atMinimum,
         historyCount: history.length
     });
@@ -77,13 +75,13 @@ async function processText(text, action, tabId) {
   }
 }
 
-async function processVocab(text) {
+async function processVocab(text, currentLexile) {
     await sendMessageToSidePanel({ type: 'loading' });
     try {
         const response = await fetch(`${API_URL}/vocab`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text }),
+            body: JSON.stringify({ text, currentLexile }), // Pass the lexile score
         });
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         
@@ -99,11 +97,10 @@ async function processVocab(text) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    // This is the new handshake logic
     if (message.type === 'sidepanel-ready' && lastActionData) {
         if (lastActionData.type === 'process-initial-text') {
             processText(lastActionData.text, 'initial', lastActionData.tabId);
-            lastActionData = null; // Clear the action after it's handled
+            lastActionData = null;
         }
     } else if (message.type === 'adapt-text') {
         if (message.action === 'undo') {
@@ -116,7 +113,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             });
         }
     } else if (message.type === 'get-vocab') {
-        processVocab(message.text);
+        // Get the currentLexile from storage and pass it to processVocab
+        chrome.storage.session.get(['currentLexile'], (result) => {
+            if (result.currentLexile) {
+                processVocab(message.text, result.currentLexile);
+            } else {
+                // Fallback if lexile isn't found for some reason
+                processVocab(message.text, 1000); 
+            }
+        });
     }
     return true;
 });
