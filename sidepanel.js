@@ -8,12 +8,13 @@ const undoButton = document.getElementById('undo-button'); // Changed from level
 const copyButton = document.getElementById('copy-text');
 
 function showState(state, data = {}) {
+    // Hide all states first
     loadingIndicator.classList.add('hidden');
     contentDisplay.classList.add('hidden');
     errorMessage.classList.add('hidden');
     
     levelDownButton.disabled = true;
-    undoButton.disabled = true; // Changed from levelUpButton
+    undoButton.disabled = true;
     copyButton.disabled = true;
 
     if (state === 'loading') {
@@ -23,6 +24,9 @@ function showState(state, data = {}) {
         errorMessage.classList.remove('hidden');
     } else if (state === 'result') {
         contentDisplay.classList.remove('hidden');
+        // Make sure error is still hidden
+        errorMessage.classList.add('hidden'); // Added this to be explicit
+        
         levelDownButton.disabled = false;
         copyButton.disabled = false;
         
