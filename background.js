@@ -2,9 +2,10 @@ const API_URL = "https://monkfish-app-wbxiw.ondigitalocean.app";
 let lastActionData = null; // Store data until the side panel is ready
 
 chrome.runtime.onInstalled.addListener(() => {
+  console.log("Background script loaded");
   chrome.contextMenus.create({
     id: "adapt-text",
-    title: "Adapt Text with AI",
+    title: "Rewrite with QuickRewriter", // <-- This line has been changed
     contexts: ["selection"],
   });
 });
