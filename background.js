@@ -43,14 +43,10 @@ async function processText(text, action, tabId) {
     });
 
     if (!response.ok) {
-        // --- THIS IS THE MODIFIED BLOCK ---
-        // Try to get the friendly error message from the API first
         try {
             const errorData = await response.json();
-            // Use the API's error message if it exists
             throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
         } catch (e) {
-            // If the API didn't send JSON or an error message, fall back
             throw new Error(`HTTP error! status: ${response.status}`);
         }
     }
@@ -58,13 +54,34 @@ async function processText(text, action, tabId) {
     const data = await response.json();
     console.log("Raw API response:", data);
     
-    // ... (rest of the function is the same) ...
+    // This is the missing code that needs to be in the try block
+    const historyResult = await chrome.storage.session.get(['adaptationHistory']);
+    let history = historyResult.adaptationHistory || [];
+
+    if (action === 'initial') {
+        history = [{ content: `<p>${text}</p>`, lexile: data.currentLexile }];
+    }
+    history.push({ content: data.adaptedText, lexile: data.currentLexile });
+
+    await sendMessageToSidePanel({ 
+        type: 'result', 
+        content: data.adaptedText,
+        dictionary: data.dictionary,
+        atMinimum: data.atMinimum,
+        historyCount: history.length
+    });
+
+    await chrome.storage.session.set({ 
+        originalText: text, 
+        currentLexile: data.currentLexile,
+        adaptationHistory: history
+    });
+    // End of missing code
 
   } catch (error) {
     console.error("Error during extension workflow:", error);
-    // Now, instead of the generic "Too much text", we'll create a more specific message
     let friendlyMessage = error.message;
-    if (error.message.includes("Request text is too long")) {
+    if (error.message.includes("413")) { // Check for the status code
         friendlyMessage = "Too much text! Please start with a smaller selection.";
     }
     await sendMessageToSidePanel({ type: 'error', message: friendlyMessage });
