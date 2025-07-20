@@ -1,3 +1,5 @@
+console.log("Background script loaded");
+
 const API_URL = "https://monkfish-app-wbxiw.ondigitalocean.app/adapt";
 
 chrome.runtime.onInstalled.addListener(() => {
