@@ -10,14 +10,20 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
-chrome.contextMenus.onClicked.addListener((info, tab) => {
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId === "adapt-text" && info.selectionText) {
     // Clear any previous history and start fresh
-    chrome.storage.session.set({ adaptationHistory: [] });
-    processText(info.selectionText, 'initial', tab.id);
+    await chrome.storage.session.set({ adaptationHistory: [] });
+    
+    // First open the panel
+    await chrome.sidePanel.open({ tabId: tab.id });
+    
+    // Then process the text - add a slight delay to ensure panel is open
+    setTimeout(() => {
+      processText(info.selectionText, 'initial', tab.id);
+    }, 500);
   }
 });
-
 async function processText(text, action, tabId) {
   if (action === 'initial') {
    await chrome.sidePanel.open({ tabId });
