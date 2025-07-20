@@ -1,136 +1,76 @@
-const API_URL = "https://monkfish-app-wbxiw.ondigitalocean.app/adapt";
+// In background.js
 
-chrome.runtime.onInstalled.addListener(() => {
-  console.log("Background script loaded");
-  chrome.contextMenus.create({
-    id: "adapt-text",
-    title: "Adapt Text with AI",
-    contexts: ["selection"],
-  });
-});
+// ... (keep your existing API_URL constant and contextMenus listeners) ...
 
-chrome.contextMenus.onClicked.addListener((info, tab) => {
-  if (info.menuItemId === "adapt-text" && info.selectionText) {
-    // Clear any previous history
-    chrome.storage.session.set({ adaptationHistory: [] });
-    
-    // Open the sidepanel first (directly, no await)
-    chrome.sidePanel.open({ tabId: tab.id });
-    
-    // Process the text with a slight delay to ensure sidepanel is open
-    setTimeout(() => {
-      processText(info.selectionText, 'simpler', tab.id);
-    }, 300);
-  }
-});
-
+// --- Your existing processText function can remain unchanged ---
 async function processText(text, action, tabId) {
-  console.log("Processing text:", action);
-  
-  chrome.runtime.sendMessage({ type: 'loading' });
-
-  try {
-    const requestBody = { text, action };
-    const sessionData = await chrome.storage.session.get(['currentLexile', 'adaptationHistory']);
-    const history = sessionData.adaptationHistory || [];
-
-    if (action !== 'initial') {
-        requestBody.currentLexile = sessionData.currentLexile;
-    }
-
-    const response = await fetch(API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestBody),
-    });
-
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    console.log("Raw API response:", data);
-
-    // Improved error text cleaning
-   if (data.adaptedText) {
-  // Convert to string in case it's not already
-  let adaptedText = data.adaptedText.toString();
-  
-  // Specifically target the common error message pattern
-  adaptedText = adaptedText.replace(/Error:\s*Here is the summary of the text in simple, easy-to-scan HTML format:/gi, "");
-  
-  // Remove any error: text at the beginning of paragraphs or document
-  adaptedText = adaptedText.replace(/<p>\s*Error:/gi, "<p>");
-  adaptedText = adaptedText.replace(/^Error:/gi, "");
-  adaptedText = adaptedText.replace(/<([^>]+)>\s*Error:/gi, "<$1>");
-  
-  // More general error text removal
-  adaptedText = adaptedText.replace(/Error:/gi, "");
-  
-  data.adaptedText = adaptedText;
+    // ... (no changes needed here)
 }
 
-    // Add the new result to the history
-    if (action !== 'initial') {
-        history.push({ content: data.adaptedText, lexile: data.currentLexile });
-    } else {
-        // For initial, history starts with original text and the new result
-        history.push({ content: `<p>${text}</p>`, lexile: data.currentLexile });
-        history.push({ content: data.adaptedText, lexile: data.currentLexile });
+// --- ADD THIS NEW FUNCTION for handling vocab requests ---
+async function processVocab(text) {
+    try {
+        const response = await fetch(`${API_URL}/vocab`, { // Note the new /vocab endpoint
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json(); // Expects { dictionary: { ... } }
+
+        // Send just the dictionary back to the side panel
+        chrome.runtime.sendMessage({
+            type: 'vocab-result',
+            dictionary: data.dictionary
+        });
+
+    } catch (error) {
+        console.error("Error during vocab processing:", error);
+        chrome.runtime.sendMessage({ type: 'error', message: error.message });
     }
-
-    chrome.runtime.sendMessage({ 
-        type: 'result', 
-        content: data.adaptedText,
-        atMinimum: data.atMinimum,
-        historyCount: history.length
-    });
-
-    await chrome.storage.session.set({ 
-        originalText: text, 
-        currentLexile: data.currentLexile,
-        adaptationHistory: history
-    });
-
-  } catch (error) {
-    console.error("Error during extension workflow:", error);
-    chrome.runtime.sendMessage({ type: 'error', message: error.message });
-  }
 }
 
+
+// --- REPLACE your existing onMessage listener with this new version ---
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.type === 'adapt-text' && message.action === 'undo') {
-        // Handle Undo action
-        chrome.storage.session.get(['adaptationHistory', 'originalText'], (result) => {
-            let history = result.adaptationHistory || [];
-            if (history.length > 1) {
-                history.pop(); // Remove the current state
-                const prevState = history[history.length - 1]; // Get the previous state
-                chrome.storage.session.set({
-                    adaptationHistory: history,
-                    currentLexile: prevState.lexile
-                }, () => {
-                    chrome.runtime.sendMessage({
-                        type: 'result',
-                        content: prevState.content,
-                        atMinimum: false, // It can't be at minimum if we just undid
-                        historyCount: history.length
+    if (message.type === 'adapt-text') {
+        if (message.action === 'undo') {
+            chrome.storage.session.get(['adaptationHistory'], (result) => {
+                let history = result.adaptationHistory || [];
+                if (history.length > 1) {
+                    history.pop();
+                    const prevState = history[history.length - 1];
+                    chrome.storage.session.set({
+                        adaptationHistory: history,
+                        currentLexile: prevState.lexile
+                    }, () => {
+                        chrome.runtime.sendMessage({
+                            type: 'result',
+                            content: prevState.content,
+                            atMinimum: false,
+                            historyCount: history.length
+                        });
                     });
-                });
-            }
-        });
-
-    } else if (message.type === 'adapt-text') {
-        // Handle "Simpler" action
-        chrome.storage.session.get(['originalText'], async (result) => {
-            if (result.originalText) {
-                const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-                if (tab) {
-                    processText(result.originalText, message.action, tab.id);
                 }
-            }
-        });
+            });
+        } else {
+            chrome.storage.session.get(['originalText'], async (result) => {
+                if (result.originalText) {
+                    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+                    if (tab) {
+                        processText(result.originalText, message.action, tab.id);
+                    }
+                }
+            });
+        }
+    } else if (message.type === 'get-vocab') {
+        // When the vocab button is clicked, call the new function
+        processVocab(message.text);
     }
     return true; 
 });
