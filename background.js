@@ -49,16 +49,21 @@ async function processText(text, action, tabId) {
     const data = await response.json();
 
     // Add the new result to the history
-   // Clean any error prefix from the response text
+// More aggressive error text removal
 if (data.adaptedText) {
-  // Remove "Error:" at the beginning of the content (with or without HTML tags)
-  data.adaptedText = data.adaptedText.replace(/^(<p>)?Error:\s*/i, "$1");
+  // Convert to string in case it's not already
+  let adaptedText = data.adaptedText.toString();
   
-  // Also check for cases where "Error:" might appear after initial HTML
-  data.adaptedText = data.adaptedText.replace(/<p>Error:\s*/i, "<p>");
+  // Remove any occurrence of "Error:" at the beginning of the text or after HTML tags
+  adaptedText = adaptedText.replace(/<p>\s*Error:/gi, "<p>");
+  adaptedText = adaptedText.replace(/^Error:/i, "");
+  adaptedText = adaptedText.replace(/<([^>]+)>\s*Error:/gi, "<$1>");
   
-  // And for cases without HTML tags
-  data.adaptedText = data.adaptedText.replace(/^Error:\s*/i, "");
+  // Also try removing it if it appears with any capitalization
+  adaptedText = adaptedText.replace(/<p>\s*ERROR:/gi, "<p>");
+  adaptedText = adaptedText.replace(/^ERROR:/i, "");
+  
+  data.adaptedText = adaptedText;
 }
     if (action !== 'initial') {
         history.push({ content: data.adaptedText, lexile: data.currentLexile });
