@@ -1,10 +1,6 @@
 document.addEventListener('DOMContentLoaded', function() {
   console.log("Sidepanel DOM loaded, sending ready signal");
-  
-  // Force tooltip to be hidden and text size to be large on startup
   document.getElementById('tooltip').classList.add('hidden');
-  document.getElementById('adapted-text').classList.add('text-xl');
-
   chrome.runtime.sendMessage({ type: 'sidepanel-ready' });
 });
 
@@ -37,15 +33,12 @@ function showState(state, data = {}) {
         errorMessage.classList.remove('hidden');
     } else if (state === 'result') {
         contentDisplay.classList.remove('hidden');
-        
         levelDownButton.disabled = false;
         copyButton.disabled = false;
         vocabButton.disabled = false;
-        
         if (data.historyCount > 1) {
             undoButton.disabled = false;
         }
-
         if (data.atMinimum) {
             levelDownButton.disabled = true;
             levelDownButton.textContent = 'Simplest';
@@ -78,13 +71,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } else if (message.type === 'vocab-result') {
         const textWithDefinitions = applyDictionary(adaptedTextElement.innerHTML, message.dictionary);
         adaptedTextElement.innerHTML = textWithDefinitions;
-        
         const currentState = {
             atMinimum: levelDownButton.disabled && levelDownButton.textContent === 'Simplest',
             historyCount: undoButton.disabled ? 1 : 2 
         };
         showState('result', currentState);
-
         vocabButton.disabled = true;
     }
 });
@@ -113,8 +104,12 @@ copyButton.addEventListener('click', () => {
 
 adaptedTextElement.addEventListener('mouseover', (event) => {
     if (event.target.classList.contains('definable-word')) {
+        const word = event.target.textContent;
         const definition = event.target.getAttribute('data-definition');
-        tooltip.textContent = definition;
+        
+        // This is the updated line for formatting the tooltip
+        tooltip.innerHTML = `<strong class="font-bold">${word}:</strong> ${definition}`;
+        
         const rect = event.target.getBoundingClientRect();
         tooltip.style.left = `${rect.left}px`;
         tooltip.style.top = `${rect.bottom + 4}px`;
