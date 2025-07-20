@@ -6,6 +6,9 @@ const errorText = document.getElementById('error-text');
 const levelDownButton = document.getElementById('level-down');
 const undoButton = document.getElementById('undo-button'); // Changed from levelUpButton
 const copyButton = document.getElementById('copy-text');
+const smallSizeRadio = document.getElementById('small-size');
+const standardSizeRadio = document.getElementById('standard-size');
+const largeSizeRadio = document.getElementById('large-size');
 
 function showState(state, data = {}) {
     // Hide all states first
@@ -74,3 +77,23 @@ copyButton.addEventListener('click', () => {
 });
 
 adaptedTextElement.innerHTML = '<p>Select some text on a page, right-click, and choose "Adapt Text with AI" to get started.</p>';
+if (smallSizeRadio && standardSizeRadio && largeSizeRadio) {
+    smallSizeRadio.addEventListener('change', () => {
+        adaptedTextElement.classList.remove('text-lg', 'text-xl', 'text-2xl');
+        adaptedTextElement.classList.add('text-sm');
+    });
+
+    standardSizeRadio.addEventListener('change', () => {
+        adaptedTextElement.classList.remove('text-sm', 'text-xl', 'text-2xl');
+        adaptedTextElement.classList.add('text-lg');
+    });
+
+    largeSizeRadio.addEventListener('change', () => {
+        adaptedTextElement.classList.remove('text-sm', 'text-lg');
+        adaptedTextElement.classList.add('text-xl');
+    });
+    
+    // Set default size
+    standardSizeRadio.checked = true;
+    adaptedTextElement.classList.add('text-lg');
+}
