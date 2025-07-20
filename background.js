@@ -1,8 +1,7 @@
-console.log("Background script loaded");
-
 const API_URL = "https://monkfish-app-wbxiw.ondigitalocean.app/adapt";
 
 chrome.runtime.onInstalled.addListener(() => {
+  console.log("Background script loaded");
   chrome.contextMenus.create({
     id: "adapt-text",
     title: "Adapt Text with AI",
@@ -10,25 +9,20 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
-chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === "adapt-text" && info.selectionText) {
-    // Clear any previous history and start fresh
-    await chrome.storage.session.set({ adaptationHistory: [] });
+    // Open the side panel immediately without await - must be directly in response to user gesture
+    chrome.sidePanel.open({ tabId: tab.id });
     
-    // First open the panel
-    await chrome.sidePanel.open({ tabId: tab.id });
-    
-    // Then process the text - add a slight delay to ensure panel is open
-    setTimeout(() => {
+    // Then clear history and process text
+    chrome.storage.session.set({ adaptationHistory: [] }, () => {
       processText(info.selectionText, 'initial', tab.id);
-    }, 500);
+    });
   }
 });
-async function processText(text, action, tabId) {
-  if (action === 'initial') {
-   await chrome.sidePanel.open({ tabId });
 
-  }
+async function processText(text, action, tabId) {
+  console.log("Processing text:", action);
   
   chrome.runtime.sendMessage({ type: 'loading' });
 
@@ -53,24 +47,29 @@ async function processText(text, action, tabId) {
     }
 
     const data = await response.json();
+    console.log("Raw API response:", data);
+    console.log("Adapted text before cleaning:", data.adaptedText);
+
+    // Improved error text cleaning
+    if (data.adaptedText) {
+      // Convert to string in case it's not already
+      let adaptedText = data.adaptedText.toString();
+      
+      // Remove any occurrence of "Error:" at the beginning of the text or after HTML tags
+      adaptedText = adaptedText.replace(/<p>\s*Error:/gi, "<p>");
+      adaptedText = adaptedText.replace(/^Error:/i, "");
+      adaptedText = adaptedText.replace(/<([^>]+)>\s*Error:/gi, "<$1>");
+      
+      // Also try removing it if it appears with any capitalization
+      adaptedText = adaptedText.replace(/<p>\s*ERROR:/gi, "<p>");
+      adaptedText = adaptedText.replace(/^ERROR:/i, "");
+      
+      data.adaptedText = adaptedText;
+    }
+    
+    console.log("Adapted text after cleaning:", data.adaptedText);
 
     // Add the new result to the history
-// More aggressive error text removal
-if (data.adaptedText) {
-  // Convert to string in case it's not already
-  let adaptedText = data.adaptedText.toString();
-  
-  // Remove any occurrence of "Error:" at the beginning of the text or after HTML tags
-  adaptedText = adaptedText.replace(/<p>\s*Error:/gi, "<p>");
-  adaptedText = adaptedText.replace(/^Error:/i, "");
-  adaptedText = adaptedText.replace(/<([^>]+)>\s*Error:/gi, "<$1>");
-  
-  // Also try removing it if it appears with any capitalization
-  adaptedText = adaptedText.replace(/<p>\s*ERROR:/gi, "<p>");
-  adaptedText = adaptedText.replace(/^ERROR:/i, "");
-  
-  data.adaptedText = adaptedText;
-}
     if (action !== 'initial') {
         history.push({ content: data.adaptedText, lexile: data.currentLexile });
     } else {
