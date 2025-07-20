@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Text Adapter AI",
+  "name": "QuickRewriter",
   "version": "1.0",
-  "description": "Adapts selected text to be more accessible.",
+  "description": "Simplifies and rephrases web content for clarity and accessibility.",
   "permissions": [
     "activeTab",
     "contextMenus",
