@@ -11,16 +11,16 @@
         .animate-spin { animation: spin 1s linear infinite; }
         #adapted-text p { margin-bottom: 1em !important; }
         .definable-word {
-            background-color: #e0e7ff; /* A light indigo background */
+            background-color: #e0e7ff;
             cursor: pointer;
             border-radius: 4px;
             padding: 1px 3px;
         }
         #tooltip {
-            background-color: #f8fafc; /* Lighter background (slate-50) */
-            color: #1e293b;           /* Darker text (slate-800) */
-            border: 1px solid #cbd5e1; /* Add a border (slate-300) */
-            padding: 6px 10px;        /* Adjust padding slightly */
+            background-color: #f8fafc;
+            color: #1e293b;
+            border: 1px solid #cbd5e1;
+            padding: 6px 10px;
             z-index: 10;
             border-radius: 6px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
@@ -39,7 +39,6 @@
                 <div class="h-10 w-10 border-4 border-slate-200 border-b-slate-500 rounded-full animate-spin"></div>
             </div>
             <div id="error-message" class="bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded-lg hidden">
-                <strong class="font-bold">Error:</strong>
                 <span id="error-text" class="block sm:inline"></span>
             </div>
             <div id="content-display" class="prose prose-slate max-w-none">
@@ -52,20 +51,12 @@
 
         <footer class="pt-4 mt-4 border-t border-slate-200">
             <div class="grid grid-cols-2 gap-2">
-                <button id="level-down" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
-                    Simpler
-                </button>
-                <button id="undo-button" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
-                    Undo
-                </button>
+                <button id="level-down" class="...">Simpler</button>
+                <button id="undo-button" class="...">Undo</button>
             </div>
             <div class="grid grid-cols-2 gap-2 mt-2">
-                <button id="copy-text" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
-                    Copy Text
-                </button>
-                <button id="vocab-button" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
-                    Vocab Help
-                </button>
+                <button id="copy-text" class="...">Copy Text</button>
+                <button id="vocab-button" class="...">Vocab Help</button>
             </div>
         </footer>
     </div>
