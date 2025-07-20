@@ -1,3 +1,8 @@
+// Signal to the background script that the sidepanel is ready
+document.addEventListener('DOMContentLoaded', function() {
+  console.log("Sidepanel DOM loaded, sending ready signal");
+  chrome.runtime.sendMessage({ type: 'sidepanel-ready' });
+});
 const loadingIndicator = document.getElementById('loading');
 const contentDisplay = document.getElementById('content-display');
 const adaptedTextElement = document.getElementById('adapted-text');
