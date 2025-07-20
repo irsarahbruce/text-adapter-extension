@@ -53,18 +53,23 @@ async function processText(text, action, tabId) {
     console.log("Raw API response:", data);
 
     // Improved error text cleaning
-    if (data.adaptedText) {
-      // Convert to string in case it's not already
-      let adaptedText = data.adaptedText.toString();
-      
-      // Remove any occurrence of "Error:" at the beginning of the text or after HTML tags
-      adaptedText = adaptedText.replace(/<p>\s*Error:/gi, "<p>");
-      adaptedText = adaptedText.replace(/^Error:/i, "");
-      adaptedText = adaptedText.replace(/<([^>]+)>\s*Error:/gi, "<$1>");
-      adaptedText = adaptedText.replace(/Error:/gi, "");
-      
-      data.adaptedText = adaptedText;
-    }
+   if (data.adaptedText) {
+  // Convert to string in case it's not already
+  let adaptedText = data.adaptedText.toString();
+  
+  // Specifically target the common error message pattern
+  adaptedText = adaptedText.replace(/Error:\s*Here is the summary of the text in simple, easy-to-scan HTML format:/gi, "");
+  
+  // Remove any error: text at the beginning of paragraphs or document
+  adaptedText = adaptedText.replace(/<p>\s*Error:/gi, "<p>");
+  adaptedText = adaptedText.replace(/^Error:/gi, "");
+  adaptedText = adaptedText.replace(/<([^>]+)>\s*Error:/gi, "<$1>");
+  
+  // More general error text removal
+  adaptedText = adaptedText.replace(/Error:/gi, "");
+  
+  data.adaptedText = adaptedText;
+}
 
     // Add the new result to the history
     if (action !== 'initial') {
