@@ -17,8 +17,5 @@
   },
   "host_permissions": [
     "https://monkfish-app-wbxiw.ondigitalocean.app/*"
-  ],
-  "content_security_policy": {
-  "extension_pages": "script-src 'self' https://cdn.tailwindcss.com; object-src 'self'"
-}
+  ]
 }
