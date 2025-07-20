@@ -1,66 +1,120 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Text Adapter</title>
-    <link rel="stylesheet" href="tailwind.min.css">
-  <style>
-    body { font-family: 'Inter', sans-serif; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .animate-spin { animation: spin 1s linear infinite; }
+document.addEventListener('DOMContentLoaded', function() {
+  console.log("Sidepanel DOM loaded, sending ready signal");
+  chrome.runtime.sendMessage({ type: 'sidepanel-ready' });
+});
+
+const loadingIndicator = document.getElementById('loading');
+const contentDisplay = document.getElementById('content-display');
+const adaptedTextElement = document.getElementById('adapted-text');
+const errorMessage = document.getElementById('error-message');
+const errorText = document.getElementById('error-text');
+const levelDownButton = document.getElementById('level-down');
+const undoButton = document.getElementById('undo-button');
+const copyButton = document.getElementById('copy-text');
+const vocabButton = document.getElementById('vocab-button');
+const tooltip = document.getElementById('tooltip');
+
+function showState(state, data = {}) {
+    loadingIndicator.classList.add('hidden');
+    contentDisplay.classList.add('hidden');
+    errorMessage.classList.add('hidden');
     
-    #content-display { padding: 0 !important; margin: 0 !important; width: 100% !important; }    
-    #adapted-text { padding: 0 !important; overflow-wrap: break-word; word-wrap: break-word; font-size: 18px !important; line-height: 1.5 !important; }
-    #adapted-text p { margin-bottom: 1em !important; }
-</style>
-</head>
-<body class="bg-slate-50 text-slate-800 p-4">
-    <div id="app" class="flex flex-col h-full">
+    levelDownButton.disabled = true;
+    undoButton.disabled = true;
+    copyButton.disabled = true;
+    vocabButton.disabled = true;
+
+    if (state === 'loading') {
+        loadingIndicator.classList.remove('hidden');
+    } else if (state === 'error') {
+        errorText.textContent = data.message;
+        errorMessage.classList.remove('hidden');
+    } else if (state === 'result') {
+        contentDisplay.classList.remove('hidden');
+        errorMessage.classList.add('hidden');
         
-        <header class="pb-4 border-b border-slate-200">
-            <h1 class="text-lg font-bold text-slate-700">Adapted Text</h1>
-            <p class="text-sm text-slate-500">Your text, simplified.</p>
-        </header>
+        levelDownButton.disabled = false;
+        copyButton.disabled = false;
+        vocabButton.disabled = false;
+        
+        if (data.historyCount > 1) {
+            undoButton.disabled = false;
+        }
 
-        <main class="flex-grow mt-4 overflow-y-auto relative">
-           <div id="loading" class="flex justify-center items-center h-full hidden">
-                <div class="h-10 w-10 border-4 border-slate-200 border-b-slate-500 rounded-full animate-spin"></div>
-            </div>
+        if (data.atMinimum) {
+            levelDownButton.disabled = true;
+            levelDownButton.textContent = 'Simplest';
+        } else {
+            levelDownButton.textContent = 'Simpler';
+        }
+    }
+}
 
-            <div id="error-message" class="bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded-lg hidden">
-                <strong class="font-bold">Error:</strong>
-                <span id="error-text" class="block sm:inline"></span>
-            </div>
-            
-            <div id="content-display" class="prose prose-slate max-w-none">
-                <div id="adapted-text" class="text-xl"></div>
-            </div>
+function applyDictionary(text, dictionary) {
+    if (!dictionary || Object.keys(dictionary).length === 0) return text;
+    const sortedWords = Object.keys(dictionary).sort((a, b) => b.length - a.length);
 
-            <div id="tooltip" class="hidden absolute z-10 bg-slate-800 text-white text-sm rounded-lg px-3 py-2 shadow-lg">
-                Tooltip content
-            </div>
-        </main>
+    for (const word of sortedWords) {
+        const regex = new RegExp(`\\b(${word})\\b(?![^<]*?>)`, 'gi');
+        const definition = dictionary[word];
+        text = text.replace(regex, `<span class="definable-word" data-definition="${definition}">$1</span>`);
+    }
+    return text;
+}
 
-        <footer class="pt-4 mt-4 border-t border-slate-200">
-            <div class="grid grid-cols-2 gap-2">
-                <button id="level-down" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
-                    Simpler
-                </button>
-                <button id="undo-button" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
-                    Undo
-                </button>
-            </div>
-             <div class="grid grid-cols-2 gap-2 mt-2">
-                <button id="copy-text" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
-                    Copy Text
-                </button>
-                <button id="vocab-button" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
-                    Vocab Help
-                </button>
-            </div>
-        </footer>
-    </div>
-    <script src="sidepanel.js"></script>
-</body>
-</html>
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === 'loading') {
+        showState('loading');
+    } else if (message.type === 'error') {
+        showState('error', { message: message.message });
+    } else if (message.type === 'result') {
+        adaptedTextElement.innerHTML = message.content;
+        showState('result', message);
+    } else if (message.type === 'vocab-result') {
+        const textWithDefinitions = applyDictionary(adaptedTextElement.innerHTML, message.dictionary);
+        adaptedTextElement.innerHTML = textWithDefinitions;
+        vocabButton.disabled = true;
+    }
+});
+
+vocabButton.addEventListener('click', () => {
+    const currentText = adaptedTextElement.innerHTML;
+    chrome.runtime.sendMessage({ type: 'get-vocab', text: currentText });
+});
+
+levelDownButton.addEventListener('click', () => {
+    chrome.runtime.sendMessage({ type: 'adapt-text', action: 'simpler' });
+});
+
+undoButton.addEventListener('click', () => {
+    chrome.runtime.sendMessage({ type: 'adapt-text', action: 'undo' });
+});
+
+copyButton.addEventListener('click', () => {
+    const textToCopy = adaptedTextElement.textContent;
+    navigator.clipboard.writeText(textToCopy).then(() => {
+        const originalText = copyButton.textContent;
+        copyButton.textContent = 'Copied!';
+        setTimeout(() => { copyButton.textContent = originalText; }, 2000);
+    }).catch(err => console.error('Failed to copy text: ', err));
+});
+
+adaptedTextElement.addEventListener('mouseover', (event) => {
+    if (event.target.classList.contains('definable-word')) {
+        const definition = event.target.getAttribute('data-definition');
+        tooltip.textContent = definition;
+        const rect = event.target.getBoundingClientRect();
+        tooltip.style.left = `${rect.left}px`;
+        tooltip.style.top = `${rect.bottom + 4}px`;
+        tooltip.classList.remove('hidden');
+    }
+});
+
+adaptedTextElement.addEventListener('mouseout', (event) => {
+    if (event.target.classList.contains('definable-word')) {
+        tooltip.classList.add('hidden');
+    }
+});
+
+// Update the initial text
+adaptedTextElement.innerHTML = '<p>Please wait...</p>';
