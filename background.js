@@ -1,7 +1,6 @@
 const API_URL = "https://monkfish-app-wbxiw.ondigitalocean.app";
 
 chrome.runtime.onInstalled.addListener(() => {
-  console.log("Background script loaded");
   chrome.contextMenus.create({
     id: "adapt-text",
     title: "Adapt Text with AI",
@@ -11,31 +10,42 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === "adapt-text" && info.selectionText) {
-    // Clear any previous history
     chrome.storage.session.set({ adaptationHistory: [] });
-    
-    // Open the sidepanel first
     chrome.sidePanel.open({ tabId: tab.id });
-    
-    // Process the text with a slight delay to ensure the sidepanel is open
     setTimeout(() => {
-      processText(info.selectionText, 'simpler', tab.id);
+      processText(info.selectionText, 'initial', tab.id);
     }, 300);
   }
 });
 
+// A more robust way to send messages to the side panel
+async function sendMessageToSidePanel(message, retries = 3) {
+  try {
+    await chrome.runtime.sendMessage(message);
+  } catch (error) {
+    if (retries > 0 && error.message.includes("Receiving end does not exist")) {
+      console.log("Side panel not ready, retrying...");
+      setTimeout(() => sendMessageToSidePanel(message, retries - 1), 100);
+    } else {
+      console.error("Failed to send message to side panel:", error);
+    }
+  }
+}
+
 async function processText(text, action, tabId) {
   console.log("Processing text:", action);
-  
-  chrome.runtime.sendMessage({ type: 'loading' });
+  await sendMessageToSidePanel({ type: 'loading' });
 
   try {
     const requestBody = { text, action };
     const sessionData = await chrome.storage.session.get(['currentLexile', 'adaptationHistory']);
-    const history = sessionData.adaptationHistory || [];
-
+    let history = sessionData.adaptationHistory || [];
+    
     if (action !== 'initial') {
-        requestBody.currentLexile = sessionData.currentLexile;
+      requestBody.currentLexile = sessionData.currentLexile;
+    } else {
+      // For the very first request, we don't have a lexile score yet.
+      // The API will handle this with a default.
     }
 
     const response = await fetch(`${API_URL}/adapt`, {
@@ -52,29 +62,19 @@ async function processText(text, action, tabId) {
     const data = await response.json();
     console.log("Raw API response:", data);
 
-    // This is your original error text cleaning logic
-    if (data.adaptedText) {
-      let adaptedText = data.adaptedText.toString();
-      adaptedText = adaptedText.replace(/Error:\s*Here is the summary of the text in simple, easy-to-scan HTML format:/gi, "");
-      adaptedText = adaptedText.replace(/<p>\s*Error:/gi, "<p>");
-      adaptedText = adaptedText.replace(/^Error:/gi, "");
-      adaptedText = adaptedText.replace(/<([^>]+)>\s*Error:/gi, "<$1>");
-      adaptedText = adaptedText.replace(/Error:/gi, "");
-      data.adaptedText = adaptedText;
+    if (data.adaptedText && typeof data.adaptedText === 'string') {
+        data.adaptedText = data.adaptedText.replace(/Error:/gi, "").trim();
     }
 
-    // Add the new result to the history
-    if (action !== 'initial') {
-        history.push({ content: data.adaptedText, lexile: data.currentLexile });
-    } else {
-        history.push({ content: `<p>${text}</p>`, lexile: data.currentLexile });
-        history.push({ content: data.adaptedText, lexile: data.currentLexile });
+    if (action === 'initial') {
+        history = [{ content: `<p>${text}</p>`, lexile: data.currentLexile }];
     }
+    history.push({ content: data.adaptedText, lexile: data.currentLexile });
 
-    chrome.runtime.sendMessage({ 
+    await sendMessageToSidePanel({ 
         type: 'result', 
         content: data.adaptedText,
-        dictionary: data.dictionary, // Pass dictionary if available
+        dictionary: data.dictionary,
         atMinimum: data.atMinimum,
         historyCount: history.length
     });
@@ -87,15 +87,14 @@ async function processText(text, action, tabId) {
 
   } catch (error) {
     console.error("Error during extension workflow:", error);
-    chrome.runtime.sendMessage({ type: 'error', message: error.message });
+    await sendMessageToSidePanel({ type: 'error', message: error.message });
   }
 }
 
-// This is the new function for handling vocab requests
 async function processVocab(text) {
+    await sendMessageToSidePanel({ type: 'loading' });
     try {
-        chrome.runtime.sendMessage({ type: 'loading' });
-        const response = await fetch(`${API_URL}/vocab`, { // Note the new /vocab endpoint
+        const response = await fetch(`${API_URL}/vocab`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ text }),
@@ -106,21 +105,18 @@ async function processVocab(text) {
             throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
         }
 
-        const data = await response.json(); // Expects { dictionary: { ... } }
-
-        // Send just the dictionary back to the side panel
-        chrome.runtime.sendMessage({
+        const data = await response.json();
+        await sendMessageToSidePanel({
             type: 'vocab-result',
             dictionary: data.dictionary
         });
 
     } catch (error) {
         console.error("Error during vocab processing:", error);
-        chrome.runtime.sendMessage({ type: 'error', message: error.message });
+        await sendMessageToSidePanel({ type: 'error', message: error.message });
     }
 }
 
-// This is the updated message listener that handles all actions
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'adapt-text') {
         if (message.action === 'undo') {
@@ -133,7 +129,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                         adaptationHistory: history,
                         currentLexile: prevState.lexile
                     }, () => {
-                        chrome.runtime.sendMessage({
+                        sendMessageToSidePanel({
                             type: 'result',
                             content: prevState.content,
                             atMinimum: false,
@@ -142,19 +138,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     });
                 }
             });
-        } else { // Handles "Simpler"
-            chrome.storage.session.get(['originalText'], async (result) => {
+        } else {
+            chrome.storage.session.get(['originalText', 'currentLexile'], async (result) => {
                 if (result.originalText) {
                     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-                    if (tab) {
-                        processText(result.originalText, message.action, tab.id);
-                    }
+                    processText(result.originalText, message.action, tab.id);
                 }
             });
         }
     } else if (message.type === 'get-vocab') {
-        // When the vocab button is clicked, call the new function
         processVocab(message.text);
     }
-    return true; 
+    return true;
 });
