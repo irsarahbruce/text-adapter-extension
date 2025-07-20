@@ -73,7 +73,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } else if (message.type === 'vocab-result') {
         const textWithDefinitions = applyDictionary(adaptedTextElement.innerHTML, message.dictionary);
         adaptedTextElement.innerHTML = textWithDefinitions;
-        vocabButton.disabled = true;
+        
+        // Call showState to re-enable the other buttons correctly
+        const currentState = {
+            atMinimum: levelDownButton.disabled && levelDownButton.textContent === 'Simplest',
+            historyCount: undoButton.disabled ? 1 : 2 
+        };
+        showState('result', currentState);
+
+        vocabButton.disabled = true; // Now, disable the vocab button
     }
 });
 
@@ -116,5 +124,4 @@ adaptedTextElement.addEventListener('mouseout', (event) => {
     }
 });
 
-// Update the initial text
 adaptedTextElement.innerHTML = '<p>Please wait...</p>';
