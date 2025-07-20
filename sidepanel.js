@@ -1,7 +1,10 @@
 document.addEventListener('DOMContentLoaded', function() {
   console.log("Sidepanel DOM loaded, sending ready signal");
-  // Explicitly hide the tooltip on startup to be safe
+  
+  // Force tooltip to be hidden and text size to be large on startup
   document.getElementById('tooltip').classList.add('hidden');
+  document.getElementById('adapted-text').classList.add('text-xl');
+
   chrome.runtime.sendMessage({ type: 'sidepanel-ready' });
 });
 
@@ -17,7 +20,6 @@ const vocabButton = document.getElementById('vocab-button');
 const tooltip = document.getElementById('tooltip');
 
 function showState(state, data = {}) {
-    // Hide all main elements and the tooltip on every state change
     loadingIndicator.classList.add('hidden');
     contentDisplay.classList.add('hidden');
     errorMessage.classList.add('hidden');
