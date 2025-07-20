@@ -46,6 +46,9 @@ async function processText(text, action, tabId) {
     const data = await response.json();
 
     // Add the new result to the history
+   if (data.adaptedText && data.adaptedText.includes("Error:")) {
+  data.adaptedText = data.adaptedText.replace(/^<p>Error:\s*/i, "<p>");
+}
     if (action !== 'initial') {
         history.push({ content: data.adaptedText, lexile: data.currentLexile });
     } else {
