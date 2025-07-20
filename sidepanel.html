@@ -5,14 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Text Adapter</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
+  <style>
     body { font-family: 'Inter', sans-serif; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .animate-spin { animation: spin 1s linear infinite; }
     
     /* Add these new styles */
-    #adapted-text {
-        font-size: 18px !important; /* Increase from default */
+ #content-display {
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+    }    
+#adapted-text {
+        padding: 0 !important;
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+        font-size: 18px !important; /* Increased font size */
         line-height: 1.5 !important;
     }
     
