@@ -10,7 +10,12 @@
         @keyframes spin { to { transform: rotate(360deg); } }
         .animate-spin { animation: spin 1s linear infinite; }
         
-        #adapted-text p { margin-bottom: 1em !important; }
+        /* This new rule forces the font size to be large */
+        #adapted-text p {
+            font-size: 1.25rem; /* 20px */
+            line-height: 1.75rem;
+            margin-bottom: 1em !important;
+        }
 
         .definable-word {
             background-color: #e0e7ff;
@@ -27,7 +32,6 @@
             border-radius: 6px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
-        /* This new rule will ensure the tooltip is hidden when the panel loads */
         #tooltip.hidden {
             display: none;
         }
@@ -35,10 +39,10 @@
 </head>
 <body class="bg-slate-50 text-slate-800 p-4">
     <div id="app" class="flex flex-col h-full">
+        
         <header class="pb-4 border-b border-slate-200">
             <h1 class="text-lg font-bold text-slate-700">Adapted Text</h1>
-            <p class="text-sm text-slate-500">Your text, simplified.</p>
-        </header>
+            </header>
 
         <main class="flex-grow mt-4 overflow-y-auto relative">
             <div id="loading" class="flex justify-center items-center h-full hidden">
