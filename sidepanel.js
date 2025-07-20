@@ -1,5 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
   console.log("Sidepanel DOM loaded, sending ready signal");
+  // Explicitly hide the tooltip on startup to be safe
+  document.getElementById('tooltip').classList.add('hidden');
   chrome.runtime.sendMessage({ type: 'sidepanel-ready' });
 });
 
@@ -29,7 +31,6 @@ function showState(state, data = {}) {
     if (state === 'loading') {
         loadingIndicator.classList.remove('hidden');
     } else if (state === 'error') {
-        // Dynamically add the "Error:" prefix only when an error occurs
         errorText.innerHTML = `<strong class="font-bold">Error:</strong> ${data.message}`;
         errorMessage.classList.remove('hidden');
     } else if (state === 'result') {
@@ -76,14 +77,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const textWithDefinitions = applyDictionary(adaptedTextElement.innerHTML, message.dictionary);
         adaptedTextElement.innerHTML = textWithDefinitions;
         
-        // Call showState to re-enable the other buttons correctly
         const currentState = {
             atMinimum: levelDownButton.disabled && levelDownButton.textContent === 'Simplest',
             historyCount: undoButton.disabled ? 1 : 2 
         };
         showState('result', currentState);
 
-        vocabButton.disabled = true; // Now, disable the vocab button
+        vocabButton.disabled = true;
     }
 });
 
