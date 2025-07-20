@@ -1,22 +1,17 @@
-// Signal to the background script that the sidepanel is ready
-document.addEventListener('DOMContentLoaded', function() {
-  console.log("Sidepanel DOM loaded, sending ready signal");
-  chrome.runtime.sendMessage({ type: 'sidepanel-ready' });
-});
+// sidepanel.js (New Version)
+
 const loadingIndicator = document.getElementById('loading');
 const contentDisplay = document.getElementById('content-display');
 const adaptedTextElement = document.getElementById('adapted-text');
 const errorMessage = document.getElementById('error-message');
 const errorText = document.getElementById('error-text');
 const levelDownButton = document.getElementById('level-down');
-const undoButton = document.getElementById('undo-button'); // Changed from levelUpButton
+const undoButton = document.getElementById('undo-button');
 const copyButton = document.getElementById('copy-text');
-const smallSizeRadio = document.getElementById('small-size');
-const standardSizeRadio = document.getElementById('standard-size');
-const largeSizeRadio = document.getElementById('large-size');
+const vocabButton = document.getElementById('vocab-button'); // Get the new button
+const tooltip = document.getElementById('tooltip');
 
 function showState(state, data = {}) {
-    // Hide all states first
     loadingIndicator.classList.add('hidden');
     contentDisplay.classList.add('hidden');
     errorMessage.classList.add('hidden');
@@ -24,6 +19,7 @@ function showState(state, data = {}) {
     levelDownButton.disabled = true;
     undoButton.disabled = true;
     copyButton.disabled = true;
+    vocabButton.disabled = true; // Disable by default
 
     if (state === 'loading') {
         loadingIndicator.classList.remove('hidden');
@@ -32,13 +28,12 @@ function showState(state, data = {}) {
         errorMessage.classList.remove('hidden');
     } else if (state === 'result') {
         contentDisplay.classList.remove('hidden');
-        // Make sure error is still hidden
-        errorMessage.classList.add('hidden'); // Added this to be explicit
+        errorMessage.classList.add('hidden');
         
         levelDownButton.disabled = false;
         copyButton.disabled = false;
+        vocabButton.disabled = false; // Enable when there's text
         
-        // Enable Undo button only if there's a history to undo to
         if (data.historyCount > 1) {
             undoButton.disabled = false;
         }
@@ -52,6 +47,20 @@ function showState(state, data = {}) {
     }
 }
 
+function applyDictionary(text, dictionary) {
+    if (!dictionary || Object.keys(dictionary).length === 0) {
+        return text;
+    }
+    const sortedWords = Object.keys(dictionary).sort((a, b) => b.length - a.length);
+
+    for (const word of sortedWords) {
+        const regex = new RegExp(`\\b(${word})\\b(?![^<]*?>)`, 'gi');
+        const definition = dictionary[word];
+        text = text.replace(regex, `<span class="definable-word" data-definition="${definition}">$1</span>`);
+    }
+    return text;
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'loading') {
         showState('loading');
@@ -60,14 +69,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } else if (message.type === 'result') {
         adaptedTextElement.innerHTML = message.content;
         showState('result', message);
+    } else if (message.type === 'vocab-result') {
+        // When vocab comes back, apply it to the CURRENT text
+        const textWithDefinitions = applyDictionary(adaptedTextElement.innerHTML, message.dictionary);
+        adaptedTextElement.innerHTML = textWithDefinitions;
+        vocabButton.disabled = true; // Disable button after use
     }
+});
+
+// Event listener for the new vocab button
+vocabButton.addEventListener('click', () => {
+    const currentText = adaptedTextElement.innerHTML;
+    // Send the current text to the background script to get definitions
+    chrome.runtime.sendMessage({ type: 'get-vocab', text: currentText });
 });
 
 levelDownButton.addEventListener('click', () => {
     chrome.runtime.sendMessage({ type: 'adapt-text', action: 'simpler' });
 });
 
-// Changed listener to the Undo button
 undoButton.addEventListener('click', () => {
     chrome.runtime.sendMessage({ type: 'adapt-text', action: 'undo' });
 });
@@ -81,24 +101,21 @@ copyButton.addEventListener('click', () => {
     }).catch(err => console.error('Failed to copy text: ', err));
 });
 
+adaptedTextElement.addEventListener('mouseover', (event) => {
+    if (event.target.classList.contains('definable-word')) {
+        const definition = event.target.getAttribute('data-definition');
+        tooltip.textContent = definition;
+        const rect = event.target.getBoundingClientRect();
+        tooltip.style.left = `${rect.left}px`;
+        tooltip.style.top = `${rect.bottom + 4}px`;
+        tooltip.classList.remove('hidden');
+    }
+});
+
+adaptedTextElement.addEventListener('mouseout', (event) => {
+    if (event.target.classList.contains('definable-word')) {
+        tooltip.classList.add('hidden');
+    }
+});
+
 adaptedTextElement.innerHTML = '<p>Select some text on a page, right-click, and choose "Adapt Text with AI" to get started.</p>';
-if (smallSizeRadio && standardSizeRadio && largeSizeRadio) {
-    smallSizeRadio.addEventListener('change', () => {
-        adaptedTextElement.classList.remove('text-lg', 'text-xl', 'text-2xl');
-        adaptedTextElement.classList.add('text-sm');
-    });
-
-    standardSizeRadio.addEventListener('change', () => {
-        adaptedTextElement.classList.remove('text-sm', 'text-xl', 'text-2xl');
-        adaptedTextElement.classList.add('text-lg');
-    });
-
-    largeSizeRadio.addEventListener('change', () => {
-        adaptedTextElement.classList.remove('text-sm', 'text-lg');
-        adaptedTextElement.classList.add('text-xl');
-    });
-    
-    // Set default size
-    standardSizeRadio.checked = true;
-    adaptedTextElement.classList.add('text-lg');
-}
