@@ -10,11 +10,6 @@
         @keyframes spin { to { transform: rotate(360deg); } }
         .animate-spin { animation: spin 1s linear infinite; }
         
-        #adapted-text {
-            /* The conflicting font-size rule has been removed from here */
-            line-height: 1.5 !important;
-        }
-        
         #adapted-text p { margin-bottom: 1em !important; }
 
         .definable-word {
@@ -31,6 +26,10 @@
             z-index: 10;
             border-radius: 6px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        /* This new rule will ensure the tooltip is hidden when the panel loads */
+        #tooltip.hidden {
+            display: none;
         }
     </style>
 </head>
@@ -49,7 +48,7 @@
                 <span id="error-text" class="block sm:inline"></span>
             </div>
             <div id="content-display" class="prose prose-slate max-w-none">
-                <div id="adapted-text" class="text-xl"></div>
+                <div id="adapted-text"></div>
             </div>
             <div id="tooltip" class="hidden absolute">
                 Tooltip content
