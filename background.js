@@ -8,12 +8,13 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
+// This is now much simpler.
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === "adapt-text" && info.selectionText) {
-    // Store the text and open the panel. The side panel will request the text when it's ready.
-    chrome.storage.session.set({
-      initialText: info.selectionText,
-      adaptationHistory: []
+    // Just store the text and open the panel. That's it.
+    chrome.storage.session.set({ 
+        initialText: info.selectionText, 
+        adaptationHistory: [] 
     });
     chrome.sidePanel.open({ tabId: tab.id });
   }
@@ -59,15 +60,15 @@ async function processText(text, action) {
     }
     history.push({ content: data.adaptedText, lexile: data.currentLexile });
 
-    await sendMessageToSidePanel({
-        type: 'result',
+    await sendMessageToSidePanel({ 
+        type: 'result', 
         content: data.adaptedText,
         atMinimum: data.atMinimum,
         historyCount: history.length
     });
 
-    await chrome.storage.session.set({
-        originalText: text,
+    await chrome.storage.session.set({ 
+        originalText: text, 
         currentLexile: data.currentLexile,
         adaptationHistory: history
     });
@@ -102,47 +103,31 @@ async function processVocab(text, currentLexile) {
     }
 }
 
+// The background script now just waits for commands from the side panel.
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.type === 'process-initial-text') {
-        chrome.storage.session.get('initialText', (result) => {
-            if (result.initialText) {
-                processText(result.initialText, 'initial');
-                chrome.storage.session.remove('initialText'); // Clean up
-            }
-        });
-    } else if (message.type === 'adapt-text') {
-        if (message.action === 'undo') {
-            chrome.storage.session.get(['adaptationHistory'], (result) => {
-                let history = result.adaptationHistory || [];
-                if (history.length > 1) {
-                    history.pop();
-                    const prevState = history[history.length - 1];
-                    chrome.storage.session.set({
-                        adaptationHistory: history,
-                        currentLexile: prevState.lexile
-                    }, () => {
-                        sendMessageToSidePanel({
-                            type: 'result',
-                            content: prevState.content,
-                            atMinimum: false,
-                            historyCount: history.length
-                        });
-                    });
-                }
-            });
-        } else { // Handles "Simpler"
-            chrome.storage.session.get('originalText', (result) => {
-                if (result.originalText) {
-                    processText(result.originalText, 'simpler');
-                }
-            });
-        }
+    if (message.type === 'process-text') {
+        processText(message.text, message.action);
     } else if (message.type === 'get-vocab') {
         chrome.storage.session.get(['currentLexile'], (result) => {
-            if (result.currentLexile) {
-                processVocab(message.text, result.currentLexile);
-            } else {
-                processVocab(message.text, 1000); 
+            processVocab(message.text, result.currentLexile || 1000);
+        });
+    } else if (message.type === 'undo') {
+        chrome.storage.session.get(['adaptationHistory'], (result) => {
+            let history = result.adaptationHistory || [];
+            if (history.length > 1) {
+                history.pop();
+                const prevState = history[history.length - 1];
+                chrome.storage.session.set({
+                    adaptationHistory: history,
+                    currentLexile: prevState.lexile
+                }, () => {
+                    sendMessageToSidePanel({
+                        type: 'result',
+                        content: prevState.content,
+                        atMinimum: false,
+                        historyCount: history.length
+                    });
+                });
             }
         });
     }
