@@ -11,12 +11,13 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === "adapt-text" && info.selectionText) {
-    // Open the side panel immediately in response to the user's click
-    chrome.sidePanel.open({ tabId: tab.id }, () => {
-        // Once the panel is open, then prepare the data
-        chrome.storage.session.set({ adaptationHistory: [] });
-        lastActionData = { type: 'process-initial-text', text: info.selectionText, tabId: tab.id };
-    });
+    chrome.storage.session.set({ adaptationHistory: [] });
+    
+    // Set the action data BEFORE opening the panel to avoid a race condition
+    lastActionData = { type: 'process-initial-text', text: info.selectionText, tabId: tab.id };
+    
+    // Now, open the side panel
+    chrome.sidePanel.open({ tabId: tab.id });
   }
 });
 
