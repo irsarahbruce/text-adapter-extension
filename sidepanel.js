@@ -13,46 +13,6 @@ const copyButton = document.getElementById('copy-text');
 const vocabButton = document.getElementById('vocab-button');
 const tooltip = document.getElementById('tooltip');
 
-function showState(state, data = {}) {
-    loadingIndicator.classList.add('hidden');
-    contentDisplay.classList.add('hidden');
-    errorMessage.classList.add('hidden');
-    tooltip.classList.add('hidden');
-    
-    // Disable all buttons by default before handling the new state
-    levelDownButton.disabled = true;
-    undoButton.disabled = true;
-    copyButton.disabled = true;
-    vocabButton.disabled = true;
-
-    if (state === 'loading') {
-        contentDisplay.classList.remove('hidden'); 
-        loadingIndicator.classList.remove('hidden');
-        adaptedTextElement.innerHTML = '<p>Please wait...</p>';
-    } else if (state === 'error') {
-        errorText.innerHTML = `<strong class="font-bold">Error:</strong> ${data.message}`;
-        errorMessage.classList.remove('hidden');
-    } else if (state === 'result') {
-        contentDisplay.classList.remove('hidden');
-        
-        // This is the corrected block that re-enables all necessary buttons
-        copyButton.disabled = false;
-        vocabButton.disabled = false;
-        
-        if (data.historyCount > 1) {
-            undoButton.disabled = false;
-        }
-
-        if (data.atMinimum) {
-            levelDownButton.disabled = true;
-            levelDownButton.textContent = 'Simplest';
-        } else {
-            levelDownButton.disabled = false;
-            levelDownButton.textContent = 'Simpler';
-        }
-    }
-}
-
 function applyDictionary(text, dictionary) {
     if (!dictionary || Object.keys(dictionary).length === 0) return text;
     const cleanText = text.replace(/<span class="definable-word"[^>]*>(.*?)<\/span>/gi, '$1');
@@ -67,25 +27,52 @@ function applyDictionary(text, dictionary) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    // Hide everything first for a clean state
+    loadingIndicator.classList.add('hidden');
+    contentDisplay.classList.add('hidden');
+    errorMessage.classList.add('hidden');
+    tooltip.classList.add('hidden');
+
     if (message.type === 'loading') {
-        showState('loading');
+        contentDisplay.classList.remove('hidden'); 
+        loadingIndicator.classList.remove('hidden');
+        adaptedTextElement.innerHTML = '<p>Please wait...</p>';
     } else if (message.type === 'error') {
-        showState('error', { message: message.message });
-    } else if (message.type === 'result') {
-        const textWithDefinitions = applyDictionary(message.content, message.dictionary);
-        adaptedTextElement.innerHTML = textWithDefinitions;
-        showState('result', message);
-    } else if (message.type === 'vocab-result') {
-        const textWithDefinitions = applyDictionary(adaptedTextElement.innerHTML, message.dictionary);
-        adaptedTextElement.innerHTML = textWithDefinitions;
-        const currentState = {
-            atMinimum: levelDownButton.textContent === 'Simplest',
-            historyCount: undoButton.disabled ? 1 : 2 
-        };
-        showState('result', currentState);
-        vocabButton.disabled = true;
+        errorText.innerHTML = `<strong class="font-bold">Error:</strong> ${message.message}`;
+        errorMessage.classList.remove('hidden');
+    } else if (message.type === 'result' || message.type === 'vocab-result') {
+        contentDisplay.classList.remove('hidden');
+
+        if (message.type === 'result') {
+            const textWithDefinitions = applyDictionary(message.content, message.dictionary);
+            adaptedTextElement.innerHTML = textWithDefinitions;
+        } else { // vocab-result
+            const textWithDefinitions = applyDictionary(adaptedTextElement.innerHTML, message.dictionary);
+            adaptedTextElement.innerHTML = textWithDefinitions;
+            vocabButton.disabled = true;
+        }
+        
+        // --- This is the corrected button logic ---
+        copyButton.disabled = false;
+        vocabButton.disabled = vocabButton.disabled || false; // Keep it disabled if it was just used
+        
+        if (message.historyCount > 1) {
+            undoButton.disabled = false;
+        } else {
+            undoButton.disabled = true;
+        }
+
+        if (message.atMinimum) {
+            levelDownButton.disabled = true;
+            levelDownButton.textContent = 'Simplest';
+        } else {
+            levelDownButton.disabled = false;
+            levelDownButton.textContent = 'Simpler';
+        }
     }
 });
+
+// --- (All button and tooltip event listeners remain the same) ---
 
 vocabButton.addEventListener('click', () => {
     const currentText = adaptedTextElement.innerHTML;
@@ -95,10 +82,7 @@ vocabButton.addEventListener('click', () => {
 levelDownButton.addEventListener('click', () => {
     chrome.storage.session.get('originalText', (result) => {
         if (result.originalText) {
-            chrome.runtime.sendMessage({ 
-                type: 'adapt-text', 
-                action: 'simpler' 
-            });
+            chrome.runtime.sendMessage({ type: 'adapt-text', action: 'simpler' });
         }
     });
 });
@@ -121,14 +105,11 @@ adaptedTextElement.addEventListener('mouseover', (event) => {
         const word = event.target.textContent;
         const definition = event.target.getAttribute('data-definition');
         tooltip.innerHTML = `<strong class="font-bold">${word}:</strong> ${definition}`;
-        
         const mainContentArea = document.querySelector('main');
         const wordRect = event.target.getBoundingClientRect();
         const mainRect = mainContentArea.getBoundingClientRect();
-
         const topPosition = wordRect.top - mainRect.top + mainContentArea.scrollTop + wordRect.height;
         const leftPosition = wordRect.left - mainRect.left;
-
         tooltip.style.left = `${leftPosition}px`;
         tooltip.style.top = `${topPosition}px`;
         tooltip.classList.remove('hidden');
@@ -142,7 +123,7 @@ adaptedTextElement.addEventListener('mouseout', (event) => {
 });
 
 // Set the initial state when the panel first opens
-adaptedTextElement.innerHTML = '<p>Please wait...</p>';
+adaptedTextElement.innerHTML = '<p>Select text on a page and right-click to get started.</p>';
 vocabButton.disabled = true;
 levelDownButton.disabled = true;
 undoButton.disabled = true;
