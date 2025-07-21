@@ -14,40 +14,40 @@ const vocabButton = document.getElementById('vocab-button');
 const tooltip = document.getElementById('tooltip');
 
 function showState(state, data = {}) {
-    // Hide all elements first for a clean state
     loadingIndicator.classList.add('hidden');
     contentDisplay.classList.add('hidden');
     errorMessage.classList.add('hidden');
     tooltip.classList.add('hidden');
     
-    // Disable all buttons by default
+    // Disable all buttons by default before handling the new state
     levelDownButton.disabled = true;
     undoButton.disabled = true;
     copyButton.disabled = true;
     vocabButton.disabled = true;
 
     if (state === 'loading') {
-        // When loading, keep the existing text visible and show the spinner
         contentDisplay.classList.remove('hidden'); 
         loadingIndicator.classList.remove('hidden');
+        adaptedTextElement.innerHTML = '<p>Please wait...</p>';
     } else if (state === 'error') {
         errorText.innerHTML = `<strong class="font-bold">Error:</strong> ${data.message}`;
         errorMessage.classList.remove('hidden');
     } else if (state === 'result') {
         contentDisplay.classList.remove('hidden');
         
-        // Enable buttons on a successful result
-        levelDownButton.disabled = false;
+        // This is the corrected block that re-enables all necessary buttons
         copyButton.disabled = false;
         vocabButton.disabled = false;
         
         if (data.historyCount > 1) {
             undoButton.disabled = false;
         }
+
         if (data.atMinimum) {
             levelDownButton.disabled = true;
             levelDownButton.textContent = 'Simplest';
         } else {
+            levelDownButton.disabled = false;
             levelDownButton.textContent = 'Simpler';
         }
     }
@@ -55,11 +55,8 @@ function showState(state, data = {}) {
 
 function applyDictionary(text, dictionary) {
     if (!dictionary || Object.keys(dictionary).length === 0) return text;
-    // First, remove any existing definitions to prevent duplicates
     const cleanText = text.replace(/<span class="definable-word"[^>]*>(.*?)<\/span>/gi, '$1');
-    
     const sortedWords = Object.keys(dictionary).sort((a, b) => b.length - a.length);
-
     let newText = cleanText;
     for (const word of sortedWords) {
         const regex = new RegExp(`\\b(${word})\\b(?![^<]*?>)`, 'gi');
@@ -81,15 +78,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } else if (message.type === 'vocab-result') {
         const textWithDefinitions = applyDictionary(adaptedTextElement.innerHTML, message.dictionary);
         adaptedTextElement.innerHTML = textWithDefinitions;
-        
-        // This is the corrected block
         const currentState = {
             atMinimum: levelDownButton.textContent === 'Simplest',
-            // Get the actual history count from the button's state
             historyCount: undoButton.disabled ? 1 : 2 
         };
         showState('result', currentState);
-        vocabButton.disabled = true; // Disable after use
+        vocabButton.disabled = true;
     }
 });
 
@@ -101,7 +95,10 @@ vocabButton.addEventListener('click', () => {
 levelDownButton.addEventListener('click', () => {
     chrome.storage.session.get('originalText', (result) => {
         if (result.originalText) {
-            chrome.runtime.sendMessage({ type: 'adapt-text', action: 'simpler' });
+            chrome.runtime.sendMessage({ 
+                type: 'adapt-text', 
+                action: 'simpler' 
+            });
         }
     });
 });
