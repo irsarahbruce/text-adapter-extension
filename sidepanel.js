@@ -142,7 +142,7 @@ adaptedTextElement.addEventListener('mouseout', (event) => {
 });
 
 // Set the initial state when the panel first opens
-adaptedTextElement.innerHTML = '<p>Select text on a page and right-click to get started.</p>';
+adaptedTextElement.innerHTML = '<p>Please wait...</p>';
 vocabButton.disabled = true;
 levelDownButton.disabled = true;
 undoButton.disabled = true;
