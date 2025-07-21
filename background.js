@@ -1,5 +1,4 @@
 const API_URL = "https://monkfish-app-wbxiw.ondigitalocean.app";
-let lastActionData = null;
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
@@ -9,11 +8,17 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
+// Reverted to the simpler, more reliable onClicked listener
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === "adapt-text" && info.selectionText) {
     chrome.storage.session.set({ adaptationHistory: [] });
-    lastActionData = { type: 'process-initial-text', text: info.selectionText, tabId: tab.id };
     chrome.sidePanel.open({ tabId: tab.id });
+    
+    // Use a simple delay to give the panel time to open.
+    // This is more reliable than a complex handshake.
+    setTimeout(() => {
+      processText(info.selectionText, 'initial', tab.id);
+    }, 300);
   }
 });
 
@@ -21,12 +26,13 @@ async function sendMessageToSidePanel(message) {
   try {
     await chrome.runtime.sendMessage(message);
   } catch (error) {
-    console.warn("Side panel not open or ready. Message not sent.", error);
+    console.warn("Could not send message to side panel.", error);
   }
 }
 
 async function processText(text, action, tabId) {
   await sendMessageToSidePanel({ type: 'loading' });
+
   try {
     const requestBody = { text, action };
     const sessionData = await chrome.storage.session.get(['currentLexile']);
@@ -68,6 +74,7 @@ async function processText(text, action, tabId) {
         currentLexile: data.currentLexile,
         adaptationHistory: history
     });
+
   } catch (error) {
     let friendlyMessage = error.message;
     if (error.message.includes("413")) {
@@ -99,12 +106,7 @@ async function processVocab(text, currentLexile) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.type === 'sidepanel-ready' && lastActionData) {
-        if (lastActionData.type === 'process-initial-text') {
-            processText(lastActionData.text, 'initial', lastActionData.tabId);
-            lastActionData = null;
-        }
-    } else if (message.type === 'adapt-text') {
+    if (message.type === 'adapt-text') {
         if (message.action === 'undo') {
             chrome.storage.session.get(['adaptationHistory'], (result) => {
                 let history = result.adaptationHistory || [];
@@ -125,7 +127,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 }
             });
         } else {
-            chrome.storage.session.get(['originalText'], (result) => {
+            chrome.storage.session.get('originalText', (result) => {
                 if (result.originalText) {
                     processText(result.originalText, 'simpler');
                 }
