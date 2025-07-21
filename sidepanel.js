@@ -1,7 +1,6 @@
 document.addEventListener('DOMContentLoaded', function() {
-  console.log("Sidepanel DOM loaded, sending ready signal");
-  document.getElementById('tooltip').classList.add('hidden');
-  chrome.runtime.sendMessage({ type: 'sidepanel-ready' });
+  // As soon as the panel is ready, it asks the background script to start processing.
+  chrome.runtime.sendMessage({ type: 'process-initial-text' });
 });
 
 const loadingIndicator = document.getElementById('loading');
@@ -106,10 +105,7 @@ adaptedTextElement.addEventListener('mouseover', (event) => {
     if (event.target.classList.contains('definable-word')) {
         const word = event.target.textContent;
         const definition = event.target.getAttribute('data-definition');
-        
-        // This is the updated line for formatting the tooltip
         tooltip.innerHTML = `<strong class="font-bold">${word}:</strong> ${definition}`;
-        
         const rect = event.target.getBoundingClientRect();
         tooltip.style.left = `${rect.left}px`;
         tooltip.style.top = `${rect.bottom + 4}px`;
@@ -123,4 +119,9 @@ adaptedTextElement.addEventListener('mouseout', (event) => {
     }
 });
 
-adaptedTextElement.innerHTML = '<p>Please wait...</p>';
+// Set a default state for when the panel is first opened
+adaptedTextElement.innerHTML = '<p>Select text on a page and right-click to get started.</p>';
+vocabButton.disabled = true;
+levelDownButton.disabled = true;
+undoButton.disabled = true;
+copyButton.disabled = true;
