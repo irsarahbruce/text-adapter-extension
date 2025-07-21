@@ -49,14 +49,18 @@ function showState(state, data = {}) {
 
 function applyDictionary(text, dictionary) {
     if (!dictionary || Object.keys(dictionary).length === 0) return text;
+    // First, remove any existing definitions to prevent duplicates
+    const cleanText = text.replace(/<span class="definable-word"[^>]*>(.*?)<\/span>/gi, '$1');
+    
     const sortedWords = Object.keys(dictionary).sort((a, b) => b.length - a.length);
 
+    let newText = cleanText;
     for (const word of sortedWords) {
         const regex = new RegExp(`\\b(${word})\\b(?![^<]*?>)`, 'gi');
         const definition = dictionary[word];
-        text = text.replace(regex, `<span class="definable-word" data-definition="${definition}">$1</span>`);
+        newText = newText.replace(regex, `<span class="definable-word" data-definition="${definition}">$1</span>`);
     }
-    return text;
+    return newText;
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -65,17 +69,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } else if (message.type === 'error') {
         showState('error', { message: message.message });
     } else if (message.type === 'result') {
-        const textWithDefinitions = applyDictionary(message.content, message.dictionary);
-        adaptedTextElement.innerHTML = textWithDefinitions;
+        // The result message now ONLY sets the text. It doesn't apply a dictionary.
+        adaptedTextElement.innerHTML = message.content;
         showState('result', message);
     } else if (message.type === 'vocab-result') {
         const textWithDefinitions = applyDictionary(adaptedTextElement.innerHTML, message.dictionary);
         adaptedTextElement.innerHTML = textWithDefinitions;
-        
-        // This is the corrected block
         const currentState = {
             atMinimum: levelDownButton.textContent === 'Simplest',
-            // Get the actual history count from the button's state
             historyCount: undoButton.disabled ? 1 : 2 
         };
         showState('result', currentState);
@@ -89,14 +90,8 @@ vocabButton.addEventListener('click', () => {
 });
 
 levelDownButton.addEventListener('click', () => {
-    chrome.storage.session.get('originalText', (result) => {
-        if (result.originalText) {
-            chrome.runtime.sendMessage({ 
-                type: 'adapt-text', 
-                action: 'simpler' 
-            });
-        }
-    });
+    // This now sends the correct, specific message type
+    chrome.runtime.sendMessage({ type: 'adapt-text', action: 'simpler' });
 });
 
 undoButton.addEventListener('click', () => {
@@ -122,7 +117,6 @@ adaptedTextElement.addEventListener('mouseover', (event) => {
         const wordRect = event.target.getBoundingClientRect();
         const mainRect = mainContentArea.getBoundingClientRect();
 
-        // This new logic calculates the position relative to the main scrollable area
         const topPosition = wordRect.top - mainRect.top + mainContentArea.scrollTop + wordRect.height;
         const leftPosition = wordRect.left - mainRect.left;
 
