@@ -111,9 +111,16 @@ adaptedTextElement.addEventListener('mouseover', (event) => {
         const word = event.target.textContent;
         const definition = event.target.getAttribute('data-definition');
         tooltip.innerHTML = `<strong class="font-bold">${word}:</strong> ${definition}`;
+        
+        const mainContentArea = document.querySelector('main');
         const rect = event.target.getBoundingClientRect();
+        
+        // This new logic accounts for the scroll position
+        const scrollTop = mainContentArea.scrollTop;
+        const topPosition = rect.top + scrollTop - mainContentArea.offsetTop + 20;
+
         tooltip.style.left = `${rect.left}px`;
-        tooltip.style.top = `${rect.bottom + 4}px`;
+        tooltip.style.top = `${topPosition}px`;
         tooltip.classList.remove('hidden');
     }
 });
