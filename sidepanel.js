@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // No startup logic needed here anymore
+  document.getElementById('tooltip').classList.add('hidden');
 });
 
 const loadingIndicator = document.getElementById('loading');
@@ -11,30 +11,36 @@ const levelDownButton = document.getElementById('level-down');
 const undoButton = document.getElementById('undo-button');
 const copyButton = document.getElementById('copy-text');
 const vocabButton = document.getElementById('vocab-button');
+const tooltip = document.getElementById('tooltip');
 
 function showState(state, data = {}) {
+    // Hide all elements first for a clean state
     loadingIndicator.classList.add('hidden');
     contentDisplay.classList.add('hidden');
     errorMessage.classList.add('hidden');
+    tooltip.classList.add('hidden');
     
+    // Disable all buttons by default
     levelDownButton.disabled = true;
     undoButton.disabled = true;
     copyButton.disabled = true;
     vocabButton.disabled = true;
 
     if (state === 'loading') {
+        // When loading, keep the existing text visible and show the spinner
         contentDisplay.classList.remove('hidden'); 
         loadingIndicator.classList.remove('hidden');
-        // This is the new line that sets the text during loading
-        adaptedTextElement.innerHTML = '<p>Please wait...</p>';
     } else if (state === 'error') {
         errorText.innerHTML = `<strong class="font-bold">Error:</strong> ${data.message}`;
         errorMessage.classList.remove('hidden');
     } else if (state === 'result') {
         contentDisplay.classList.remove('hidden');
+        
+        // Enable buttons on a successful result
         levelDownButton.disabled = false;
         copyButton.disabled = false;
         vocabButton.disabled = false;
+        
         if (data.historyCount > 1) {
             undoButton.disabled = false;
         }
@@ -49,8 +55,11 @@ function showState(state, data = {}) {
 
 function applyDictionary(text, dictionary) {
     if (!dictionary || Object.keys(dictionary).length === 0) return text;
+    // First, remove any existing definitions to prevent duplicates
     const cleanText = text.replace(/<span class="definable-word"[^>]*>(.*?)<\/span>/gi, '$1');
+    
     const sortedWords = Object.keys(dictionary).sort((a, b) => b.length - a.length);
+
     let newText = cleanText;
     for (const word of sortedWords) {
         const regex = new RegExp(`\\b(${word})\\b(?![^<]*?>)`, 'gi');
@@ -72,12 +81,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } else if (message.type === 'vocab-result') {
         const textWithDefinitions = applyDictionary(adaptedTextElement.innerHTML, message.dictionary);
         adaptedTextElement.innerHTML = textWithDefinitions;
+        
+        // This is the corrected block
         const currentState = {
             atMinimum: levelDownButton.textContent === 'Simplest',
+            // Get the actual history count from the button's state
             historyCount: undoButton.disabled ? 1 : 2 
         };
         showState('result', currentState);
-        vocabButton.disabled = true;
+        vocabButton.disabled = true; // Disable after use
     }
 });
 
@@ -107,32 +119,33 @@ copyButton.addEventListener('click', () => {
     }).catch(err => console.error('Failed to copy text: ', err));
 });
 
-adaptedTextElement.addEventListener('click', (event) => {
+adaptedTextElement.addEventListener('mouseover', (event) => {
     if (event.target.classList.contains('definable-word')) {
-        const existingDefinition = document.querySelector('.definition-inline');
-        
-        if (existingDefinition && existingDefinition.previousElementSibling === event.target) {
-            existingDefinition.remove();
-            return;
-        }
-
-        if (existingDefinition) {
-            existingDefinition.remove();
-        }
-
         const word = event.target.textContent;
         const definition = event.target.getAttribute('data-definition');
-
-        const definitionEl = document.createElement('div');
-        definitionEl.className = 'definition-inline';
-        definitionEl.innerHTML = `<strong class="font-bold">${word}:</strong> ${definition}`;
+        tooltip.innerHTML = `<strong class="font-bold">${word}:</strong> ${definition}`;
         
-        event.target.after(definitionEl);
+        const mainContentArea = document.querySelector('main');
+        const wordRect = event.target.getBoundingClientRect();
+        const mainRect = mainContentArea.getBoundingClientRect();
+
+        const topPosition = wordRect.top - mainRect.top + mainContentArea.scrollTop + wordRect.height;
+        const leftPosition = wordRect.left - mainRect.left;
+
+        tooltip.style.left = `${leftPosition}px`;
+        tooltip.style.top = `${topPosition}px`;
+        tooltip.classList.remove('hidden');
     }
 });
 
-// This line sets the initial text when the panel first opens
-adaptedTextElement.innerHTML = '<p>Please wait...</p>';
+adaptedTextElement.addEventListener('mouseout', (event) => {
+    if (event.target.classList.contains('definable-word')) {
+        tooltip.classList.add('hidden');
+    }
+});
+
+// Set the initial state when the panel first opens
+adaptedTextElement.innerHTML = '<p>Select text on a page and right-click to get started.</p>';
 vocabButton.disabled = true;
 levelDownButton.disabled = true;
 undoButton.disabled = true;
