@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Text Adapter AI</title>
+    <title>QuickRewriter AI</title>
     <link rel="stylesheet" href="tailwind.min.css">
     <style>
         body { font-family: 'Inter', sans-serif; }
@@ -22,18 +22,18 @@
             border-radius: 4px;
             padding: 1px 3px;
         }
-        #tooltip {
-            background-color: #f8fafc;
-            color: #1e293b;
-            border: 1px solid #cbd5e1;
-            padding: 6px 10px;
-            z-index: 10;
-            border-radius: 6px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            font-size: 1.25rem; /* This makes the tooltip text larger */
-        }
-        #tooltip.hidden {
-            display: none;
+        
+        /* New style for the inline definition box */
+        .definition-inline {
+            display: block;
+            padding: 8px 12px;
+            margin-left: 1rem;
+            margin-top: 4px;
+            margin-bottom: 8px;
+            background-color: #f1f5f9; /* slate-100 */
+            border-left: 3px solid #64748b; /* slate-500 */
+            border-radius: 4px;
+            font-size: 1rem; /* Slightly smaller for contrast */
         }
     </style>
 </head>
@@ -54,10 +54,7 @@
             <div id="content-display" class="prose prose-slate max-w-none">
                 <div id="adapted-text"></div>
             </div>
-            <div id="tooltip" class="hidden absolute">
-                Tooltip content
-            </div>
-        </main>
+            </main>
 
         <footer class="pt-4 mt-4 border-t border-slate-200">
             <div class="grid grid-cols-2 gap-2">
