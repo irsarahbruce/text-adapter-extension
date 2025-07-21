@@ -1,6 +1,5 @@
 document.addEventListener('DOMContentLoaded', function() {
-  // As soon as the panel is ready, it asks the background script to start processing.
-  chrome.runtime.sendMessage({ type: 'process-initial-text' });
+  document.getElementById('tooltip').classList.add('hidden');
 });
 
 const loadingIndicator = document.getElementById('loading');
@@ -26,6 +25,7 @@ function showState(state, data = {}) {
     vocabButton.disabled = true;
 
     if (state === 'loading') {
+        contentDisplay.classList.remove('hidden'); 
         loadingIndicator.classList.remove('hidden');
     } else if (state === 'error') {
         errorText.innerHTML = `<strong class="font-bold">Error:</strong> ${data.message}`;
@@ -119,8 +119,7 @@ adaptedTextElement.addEventListener('mouseout', (event) => {
     }
 });
 
-// Set a default state for when the panel is first opened
-adaptedTextElement.innerHTML = '<p>Select text on a page and right-click to get started.</p>';
+adaptedTextElement.innerHTML = '<p>Please wait...</p>';
 vocabButton.disabled = true;
 levelDownButton.disabled = true;
 undoButton.disabled = true;
