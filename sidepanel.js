@@ -71,8 +71,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } else if (message.type === 'vocab-result') {
         const textWithDefinitions = applyDictionary(adaptedTextElement.innerHTML, message.dictionary);
         adaptedTextElement.innerHTML = textWithDefinitions;
+        
+        // This is the corrected block
         const currentState = {
-            atMinimum: levelDownButton.disabled && levelDownButton.textContent === 'Simplest',
+            atMinimum: levelDownButton.textContent === 'Simplest',
+            // Get the actual history count from the button's state
             historyCount: undoButton.disabled ? 1 : 2 
         };
         showState('result', currentState);
@@ -88,7 +91,10 @@ vocabButton.addEventListener('click', () => {
 levelDownButton.addEventListener('click', () => {
     chrome.storage.session.get('originalText', (result) => {
         if (result.originalText) {
-            processText(result.originalText, 'simpler');
+            chrome.runtime.sendMessage({ 
+                type: 'adapt-text', 
+                action: 'simpler' 
+            });
         }
     });
 });
@@ -113,13 +119,14 @@ adaptedTextElement.addEventListener('mouseover', (event) => {
         tooltip.innerHTML = `<strong class="font-bold">${word}:</strong> ${definition}`;
         
         const mainContentArea = document.querySelector('main');
-        const rect = event.target.getBoundingClientRect();
-        
-        // This new logic accounts for the scroll position
-        const scrollTop = mainContentArea.scrollTop;
-        const topPosition = rect.top + scrollTop - mainContentArea.offsetTop + 20;
+        const wordRect = event.target.getBoundingClientRect();
+        const mainRect = mainContentArea.getBoundingClientRect();
 
-        tooltip.style.left = `${rect.left}px`;
+        // This new logic calculates the position relative to the main scrollable area
+        const topPosition = wordRect.top - mainRect.top + mainContentArea.scrollTop + wordRect.height;
+        const leftPosition = wordRect.left - mainRect.left;
+
+        tooltip.style.left = `${leftPosition}px`;
         tooltip.style.top = `${topPosition}px`;
         tooltip.classList.remove('hidden');
     }
@@ -131,7 +138,7 @@ adaptedTextElement.addEventListener('mouseout', (event) => {
     }
 });
 
-adaptedTextElement.innerHTML = '<p>Please wait...</p>';
+adaptedTextElement.innerHTML = '<p>Select text on a page and right-click to get started.</p>';
 vocabButton.disabled = true;
 levelDownButton.disabled = true;
 undoButton.disabled = true;
