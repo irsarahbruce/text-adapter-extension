@@ -1,5 +1,4 @@
 const API_URL = "https://monkfish-app-wbxiw.ondigitalocean.app";
-let lastActionData = null; // Store data until the side panel is ready
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
@@ -11,12 +10,11 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === "adapt-text" && info.selectionText) {
-    chrome.storage.session.set({ adaptationHistory: [] });
-    
-    // Set the action data BEFORE opening the panel to avoid a race condition
-    lastActionData = { type: 'process-initial-text', text: info.selectionText, tabId: tab.id };
-    
-    // Now, open the side panel
+    // Store the text and open the panel. The side panel will request the text when it's ready.
+    chrome.storage.session.set({ 
+        initialText: info.selectionText, 
+        adaptationHistory: [] 
+    });
     chrome.sidePanel.open({ tabId: tab.id });
   }
 });
@@ -25,11 +23,11 @@ async function sendMessageToSidePanel(message) {
   try {
     await chrome.runtime.sendMessage(message);
   } catch (error) {
-    console.warn("Side panel is not open or ready. Message not sent.", error);
+    console.warn("Could not send message to side panel.", error);
   }
 }
 
-async function processText(text, action, tabId) {
+async function processText(text, action) {
   await sendMessageToSidePanel({ type: 'loading' });
 
   try {
@@ -47,16 +45,11 @@ async function processText(text, action, tabId) {
     });
 
     if (!response.ok) {
-        try {
-            const errorData = await response.json();
-            throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-        } catch (e) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log("Raw API response:", data);
     
     const historyResult = await chrome.storage.session.get(['adaptationHistory']);
     let history = historyResult.adaptationHistory || [];
@@ -69,7 +62,6 @@ async function processText(text, action, tabId) {
     await sendMessageToSidePanel({ 
         type: 'result', 
         content: data.adaptedText,
-        dictionary: data.dictionary,
         atMinimum: data.atMinimum,
         historyCount: history.length
     });
@@ -81,7 +73,6 @@ async function processText(text, action, tabId) {
     });
 
   } catch (error) {
-    console.error("Error during extension workflow:", error);
     let friendlyMessage = error.message;
     if (error.message.includes("413")) {
         friendlyMessage = "Too much text! Please start with a smaller selection.";
@@ -112,11 +103,13 @@ async function processVocab(text, currentLexile) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.type === 'sidepanel-ready' && lastActionData) {
-        if (lastActionData.type === 'process-initial-text') {
-            processText(lastActionData.text, 'initial', lastActionData.tabId);
-            lastActionData = null;
-        }
+    if (message.type === 'process-initial-text') {
+        chrome.storage.session.get('initialText', (result) => {
+            if (result.initialText) {
+                processText(result.initialText, 'initial');
+                chrome.storage.session.remove('initialText'); // Clean up after use
+            }
+        });
     } else if (message.type === 'adapt-text') {
         if (message.action === 'undo') {
             chrome.storage.session.get(['adaptationHistory'], (result) => {
@@ -137,8 +130,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     });
                 }
             });
-        } else {
-            chrome.storage.session.get(['originalText'], (result) => {
+        } else { // Handles "Simpler"
+            chrome.storage.session.get('originalText', (result) => {
                 if (result.originalText) {
                     processText(result.originalText, 'simpler');
                 }
