@@ -19,7 +19,6 @@ function showState(state, data = {}) {
     errorMessage.classList.add('hidden');
     tooltip.classList.add('hidden');
     
-    // Disable all buttons by default before handling the new state
     levelDownButton.disabled = true;
     undoButton.disabled = true;
     copyButton.disabled = true;
@@ -34,20 +33,16 @@ function showState(state, data = {}) {
         errorMessage.classList.remove('hidden');
     } else if (state === 'result') {
         contentDisplay.classList.remove('hidden');
-        
-        // This is the corrected block that re-enables all necessary buttons
+        levelDownButton.disabled = false;
         copyButton.disabled = false;
         vocabButton.disabled = false;
-        
         if (data.historyCount > 1) {
             undoButton.disabled = false;
         }
-
         if (data.atMinimum) {
             levelDownButton.disabled = true;
             levelDownButton.textContent = 'Simplest';
         } else {
-            levelDownButton.disabled = false;
             levelDownButton.textContent = 'Simpler';
         }
     }
@@ -95,10 +90,7 @@ vocabButton.addEventListener('click', () => {
 levelDownButton.addEventListener('click', () => {
     chrome.storage.session.get('originalText', (result) => {
         if (result.originalText) {
-            chrome.runtime.sendMessage({ 
-                type: 'adapt-text', 
-                action: 'simpler' 
-            });
+            chrome.runtime.sendMessage({ type: 'adapt-text', action: 'simpler' });
         }
     });
 });
@@ -141,7 +133,6 @@ adaptedTextElement.addEventListener('mouseout', (event) => {
     }
 });
 
-// Set the initial state when the panel first opens
 adaptedTextElement.innerHTML = '<p>Select text on a page and right-click to get started.</p>';
 vocabButton.disabled = true;
 levelDownButton.disabled = true;
