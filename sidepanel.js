@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', function() {
-  document.getElementById('tooltip').classList.add('hidden');
+    // No startup logic needed here anymore
 });
 
 const loadingIndicator = document.getElementById('loading');
@@ -11,13 +11,11 @@ const levelDownButton = document.getElementById('level-down');
 const undoButton = document.getElementById('undo-button');
 const copyButton = document.getElementById('copy-text');
 const vocabButton = document.getElementById('vocab-button');
-const tooltip = document.getElementById('tooltip');
 
 function showState(state, data = {}) {
     loadingIndicator.classList.add('hidden');
     contentDisplay.classList.add('hidden');
     errorMessage.classList.add('hidden');
-    tooltip.classList.add('hidden');
     
     levelDownButton.disabled = true;
     undoButton.disabled = true;
@@ -49,11 +47,8 @@ function showState(state, data = {}) {
 
 function applyDictionary(text, dictionary) {
     if (!dictionary || Object.keys(dictionary).length === 0) return text;
-    // First, remove any existing definitions to prevent duplicates
     const cleanText = text.replace(/<span class="definable-word"[^>]*>(.*?)<\/span>/gi, '$1');
-    
     const sortedWords = Object.keys(dictionary).sort((a, b) => b.length - a.length);
-
     let newText = cleanText;
     for (const word of sortedWords) {
         const regex = new RegExp(`\\b(${word})\\b(?![^<]*?>)`, 'gi');
@@ -69,8 +64,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } else if (message.type === 'error') {
         showState('error', { message: message.message });
     } else if (message.type === 'result') {
-        // The result message now ONLY sets the text. It doesn't apply a dictionary.
-        adaptedTextElement.innerHTML = message.content;
+        const textWithDefinitions = applyDictionary(message.content, message.dictionary);
+        adaptedTextElement.innerHTML = textWithDefinitions;
         showState('result', message);
     } else if (message.type === 'vocab-result') {
         const textWithDefinitions = applyDictionary(adaptedTextElement.innerHTML, message.dictionary);
@@ -90,8 +85,11 @@ vocabButton.addEventListener('click', () => {
 });
 
 levelDownButton.addEventListener('click', () => {
-    // This now sends the correct, specific message type
-    chrome.runtime.sendMessage({ type: 'adapt-text', action: 'simpler' });
+    chrome.storage.session.get('originalText', (result) => {
+        if (result.originalText) {
+            chrome.runtime.sendMessage({ type: 'adapt-text', action: 'simpler' });
+        }
+    });
 });
 
 undoButton.addEventListener('click', () => {
@@ -107,31 +105,32 @@ copyButton.addEventListener('click', () => {
     }).catch(err => console.error('Failed to copy text: ', err));
 });
 
-// --- REPLACE the existing mouseover listener with this new version ---
-adaptedTextElement.addEventListener('mouseover', (event) => {
+// Replaced mouseover/mouseout with a single click listener
+adaptedTextElement.addEventListener('click', (event) => {
     if (event.target.classList.contains('definable-word')) {
+        const existingDefinition = document.querySelector('.definition-inline');
+        
+        // If the user clicks the same word again, just close the definition
+        if (existingDefinition && existingDefinition.previousElementSibling === event.target) {
+            existingDefinition.remove();
+            return;
+        }
+
+        // If any other definition is open, remove it
+        if (existingDefinition) {
+            existingDefinition.remove();
+        }
+
         const word = event.target.textContent;
         const definition = event.target.getAttribute('data-definition');
-        tooltip.innerHTML = `<strong class="font-bold">${word}:</strong> ${definition}`;
+
+        // Create the new definition element
+        const definitionEl = document.createElement('div');
+        definitionEl.className = 'definition-inline';
+        definitionEl.innerHTML = `<strong class="font-bold">${word}:</strong> ${definition}`;
         
-        const mainContentArea = document.querySelector('main');
-        const wordRect = event.target.getBoundingClientRect();
-        const mainRect = mainContentArea.getBoundingClientRect();
-
-        // This new, more reliable logic calculates the position relative
-        // to the visible area of the main content box.
-        const topPosition = wordRect.top - mainRect.top + wordRect.height;
-        const leftPosition = wordRect.left - mainRect.left;
-
-        tooltip.style.left = `${leftPosition}px`;
-        tooltip.style.top = `${topPosition}px`;
-        tooltip.classList.remove('hidden');
-    }
-});
-
-adaptedTextElement.addEventListener('mouseout', (event) => {
-    if (event.target.classList.contains('definable-word')) {
-        tooltip.classList.add('hidden');
+        // Insert the definition right after the word
+        event.target.after(definitionEl);
     }
 });
 
