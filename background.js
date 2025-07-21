@@ -9,10 +9,16 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
-chrome.contextMenus.onClicked.addListener((info, tab) => {
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId === "adapt-text" && info.selectionText) {
-    chrome.storage.session.set({ adaptationHistory: [] });
-    chrome.sidePanel.open({ tabId: tab.id });
+    await chrome.storage.session.set({ adaptationHistory: [] });
+
+    // This new logic forces the panel to close and reopen
+    await chrome.sidePanel.setOptions({ tabId: tab.id, enabled: false });
+    await chrome.sidePanel.setOptions({ tabId: tab.id, enabled: true });
+    await chrome.sidePanel.open({ tabId: tab.id });
+
+    // Store the data and wait for the (newly opened) side panel to be ready
     lastActionData = { type: 'process-initial-text', text: info.selectionText, tabId: tab.id };
   }
 });
@@ -115,12 +121,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
     } else if (message.type === 'adapt-text') {
         if (message.action === 'undo') {
-            // This is the complete undo logic
             chrome.storage.session.get(['adaptationHistory'], (result) => {
                 let history = result.adaptationHistory || [];
                 if (history.length > 1) {
-                    history.pop(); // Remove the current state
-                    const prevState = history[history.length - 1]; // Get the previous state
+                    history.pop();
+                    const prevState = history[history.length - 1];
                     chrome.storage.session.set({
                         adaptationHistory: history,
                         currentLexile: prevState.lexile
@@ -128,13 +133,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                         sendMessageToSidePanel({
                             type: 'result',
                             content: prevState.content,
-                            atMinimum: false, // It can't be at minimum if we just undid
+                            atMinimum: false,
                             historyCount: history.length
                         });
                     });
                 }
             });
-        } else { // This handles "Simpler"
+        } else {
             chrome.storage.session.get(['originalText'], (result) => {
                 if (result.originalText) {
                     processText(result.originalText, 'simpler');
