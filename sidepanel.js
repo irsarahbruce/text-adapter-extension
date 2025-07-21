@@ -19,6 +19,7 @@ function showState(state, data = {}) {
     errorMessage.classList.add('hidden');
     tooltip.classList.add('hidden');
     
+    // Disable all buttons by default
     levelDownButton.disabled = true;
     undoButton.disabled = true;
     copyButton.disabled = true;
@@ -33,16 +34,20 @@ function showState(state, data = {}) {
         errorMessage.classList.remove('hidden');
     } else if (state === 'result') {
         contentDisplay.classList.remove('hidden');
-        levelDownButton.disabled = false;
+        
+        // Correctly re-enable all necessary buttons
         copyButton.disabled = false;
         vocabButton.disabled = false;
+        
         if (data.historyCount > 1) {
             undoButton.disabled = false;
         }
+
         if (data.atMinimum) {
             levelDownButton.disabled = true;
             levelDownButton.textContent = 'Simplest';
         } else {
+            levelDownButton.disabled = false;
             levelDownButton.textContent = 'Simpler';
         }
     }
@@ -133,7 +138,8 @@ adaptedTextElement.addEventListener('mouseout', (event) => {
     }
 });
 
-adaptedTextElement.innerHTML = '<p>Please wait...</p>';
+// Set the initial state when the panel first opens
+adaptedTextElement.innerHTML = '<p>Select text on a page and right-click to get started.</p>';
 vocabButton.disabled = true;
 levelDownButton.disabled = true;
 undoButton.disabled = true;
