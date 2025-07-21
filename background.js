@@ -13,7 +13,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     chrome.storage.session.set({ adaptationHistory: [] });
     chrome.sidePanel.open({ tabId: tab.id });
     
-    // Revert to the simple delay, which is more reliable than a complex handshake
+    // Use a simple delay to give the panel time to open.
     setTimeout(() => {
       processText(info.selectionText, 'initial');
     }, 300);
