@@ -8,17 +8,16 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
-// Reverted to the simpler, more reliable onClicked listener
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === "adapt-text" && info.selectionText) {
     chrome.storage.session.set({ adaptationHistory: [] });
-    chrome.sidePanel.open({ tabId: tab.id });
     
-    // Use a simple delay to give the panel time to open.
-    // This is more reliable than a complex handshake.
-    setTimeout(() => {
-      processText(info.selectionText, 'initial', tab.id);
-    }, 300);
+    // Open the panel, and once it's open, then start processing the text.
+    chrome.sidePanel.open({ tabId: tab.id }, () => {
+      setTimeout(() => {
+        processText(info.selectionText, 'initial', tab.id);
+      }, 100);
+    });
   }
 });
 
