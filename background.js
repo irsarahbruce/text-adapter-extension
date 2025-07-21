@@ -9,17 +9,14 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
-chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === "adapt-text" && info.selectionText) {
-    await chrome.storage.session.set({ adaptationHistory: [] });
-
-    // This new logic forces the panel to close and reopen
-    await chrome.sidePanel.setOptions({ tabId: tab.id, enabled: false });
-    await chrome.sidePanel.setOptions({ tabId: tab.id, enabled: true });
-    await chrome.sidePanel.open({ tabId: tab.id });
-
-    // Store the data and wait for the (newly opened) side panel to be ready
-    lastActionData = { type: 'process-initial-text', text: info.selectionText, tabId: tab.id };
+    // Open the side panel immediately in response to the user's click
+    chrome.sidePanel.open({ tabId: tab.id }, () => {
+        // Once the panel is open, then prepare the data
+        chrome.storage.session.set({ adaptationHistory: [] });
+        lastActionData = { type: 'process-initial-text', text: info.selectionText, tabId: tab.id };
+    });
   }
 });
 
