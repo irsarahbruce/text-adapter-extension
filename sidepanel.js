@@ -13,6 +13,41 @@ const copyButton = document.getElementById('copy-text');
 const vocabButton = document.getElementById('vocab-button');
 const tooltip = document.getElementById('tooltip');
 
+function showState(state, data = {}) {
+    loadingIndicator.classList.add('hidden');
+    contentDisplay.classList.add('hidden');
+    errorMessage.classList.add('hidden');
+    tooltip.classList.add('hidden');
+    
+    levelDownButton.disabled = true;
+    undoButton.disabled = true;
+    copyButton.disabled = true;
+    vocabButton.disabled = true;
+
+    if (state === 'loading') {
+        contentDisplay.classList.remove('hidden'); 
+        loadingIndicator.classList.remove('hidden');
+        adaptedTextElement.innerHTML = '<p>Please wait...</p>';
+    } else if (state === 'error') {
+        errorText.innerHTML = `<strong class="font-bold">Error:</strong> ${data.message}`;
+        errorMessage.classList.remove('hidden');
+    } else if (state === 'result') {
+        contentDisplay.classList.remove('hidden');
+        levelDownButton.disabled = false;
+        copyButton.disabled = false;
+        vocabButton.disabled = false;
+        if (data.historyCount > 1) {
+            undoButton.disabled = false;
+        }
+        if (data.atMinimum) {
+            levelDownButton.disabled = true;
+            levelDownButton.textContent = 'Simplest';
+        } else {
+            levelDownButton.textContent = 'Simpler';
+        }
+    }
+}
+
 function applyDictionary(text, dictionary) {
     if (!dictionary || Object.keys(dictionary).length === 0) return text;
     const cleanText = text.replace(/<span class="definable-word"[^>]*>(.*?)<\/span>/gi, '$1');
@@ -27,51 +62,22 @@ function applyDictionary(text, dictionary) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    // Hide all elements first for a clean state
-    loadingIndicator.classList.add('hidden');
-    contentDisplay.classList.add('hidden');
-    errorMessage.classList.add('hidden');
-    tooltip.classList.add('hidden');
-
     if (message.type === 'loading') {
-        contentDisplay.classList.remove('hidden'); 
-        loadingIndicator.classList.remove('hidden');
-        adaptedTextElement.innerHTML = '<p>Please wait...</p>';
+        showState('loading');
     } else if (message.type === 'error') {
-        errorText.innerHTML = `<strong class="font-bold">Error:</strong> ${message.message}`;
-        errorMessage.classList.remove('hidden');
+        showState('error', { message: message.message });
     } else if (message.type === 'result') {
         const textWithDefinitions = applyDictionary(message.content, message.dictionary);
         adaptedTextElement.innerHTML = textWithDefinitions;
-        
-        contentDisplay.classList.remove('hidden');
-        
-        // Directly enable/disable buttons here
-        copyButton.disabled = false;
-        vocabButton.disabled = false;
-        
-        if (message.historyCount > 1) {
-            undoButton.disabled = false;
-        } else {
-            undoButton.disabled = true;
-        }
-
-        if (message.atMinimum) {
-            levelDownButton.disabled = true;
-            levelDownButton.textContent = 'Simplest';
-        } else {
-            levelDownButton.disabled = false;
-            levelDownButton.textContent = 'Simpler';
-        }
+        showState('result', message);
     } else if (message.type === 'vocab-result') {
         const textWithDefinitions = applyDictionary(adaptedTextElement.innerHTML, message.dictionary);
         adaptedTextElement.innerHTML = textWithDefinitions;
-        
-        // Restore button states, but disable vocab button
-        contentDisplay.classList.remove('hidden');
-        levelDownButton.disabled = levelDownButton.textContent === 'Simplest';
-        undoButton.disabled = undoButton.disabled; // Keep its previous state
-        copyButton.disabled = false;
+        const currentState = {
+            atMinimum: levelDownButton.textContent === 'Simplest',
+            historyCount: undoButton.disabled ? 1 : 2 
+        };
+        showState('result', currentState);
         vocabButton.disabled = true;
     }
 });
@@ -127,8 +133,7 @@ adaptedTextElement.addEventListener('mouseout', (event) => {
     }
 });
 
-// Set the initial state when the panel first opens
-adaptedTextElement.innerHTML = '<p>Select text on a page and right-click to get started.</p>';
+adaptedTextElement.innerHTML = '<p>Please wait...</p>';
 vocabButton.disabled = true;
 levelDownButton.disabled = true;
 undoButton.disabled = true;
