@@ -54,7 +54,6 @@ async function processText(text, action, tabId) {
     const data = await response.json();
     console.log("Raw API response:", data);
     
-    // This is the missing code that needs to be in the try block
     const historyResult = await chrome.storage.session.get(['adaptationHistory']);
     let history = historyResult.adaptationHistory || [];
 
@@ -76,12 +75,11 @@ async function processText(text, action, tabId) {
         currentLexile: data.currentLexile,
         adaptationHistory: history
     });
-    // End of missing code
 
   } catch (error) {
     console.error("Error during extension workflow:", error);
     let friendlyMessage = error.message;
-    if (error.message.includes("413")) { // Check for the status code
+    if (error.message.includes("413")) {
         friendlyMessage = "Too much text! Please start with a smaller selection.";
     }
     await sendMessageToSidePanel({ type: 'error', message: friendlyMessage });
@@ -94,7 +92,7 @@ async function processVocab(text, currentLexile) {
         const response = await fetch(`${API_URL}/vocab`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text, currentLexile }), // Pass the lexile score
+            body: JSON.stringify({ text, currentLexile }),
         });
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         
@@ -117,8 +115,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
     } else if (message.type === 'adapt-text') {
         if (message.action === 'undo') {
-            // ... (undo logic remains the same)
-        } else {
+            // This is the complete undo logic
+            chrome.storage.session.get(['adaptationHistory'], (result) => {
+                let history = result.adaptationHistory || [];
+                if (history.length > 1) {
+                    history.pop(); // Remove the current state
+                    const prevState = history[history.length - 1]; // Get the previous state
+                    chrome.storage.session.set({
+                        adaptationHistory: history,
+                        currentLexile: prevState.lexile
+                    }, () => {
+                        sendMessageToSidePanel({
+                            type: 'result',
+                            content: prevState.content,
+                            atMinimum: false, // It can't be at minimum if we just undid
+                            historyCount: history.length
+                        });
+                    });
+                }
+            });
+        } else { // This handles "Simpler"
             chrome.storage.session.get(['originalText'], (result) => {
                 if (result.originalText) {
                     processText(result.originalText, 'simpler');
@@ -126,12 +142,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             });
         }
     } else if (message.type === 'get-vocab') {
-        // Get the currentLexile from storage and pass it to processVocab
         chrome.storage.session.get(['currentLexile'], (result) => {
             if (result.currentLexile) {
                 processVocab(message.text, result.currentLexile);
             } else {
-                // Fallback if lexile isn't found for some reason
                 processVocab(message.text, 1000); 
             }
         });
