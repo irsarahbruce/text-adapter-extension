@@ -14,7 +14,6 @@ const vocabButton = document.getElementById('vocab-button');
 const tooltip = document.getElementById('tooltip');
 
 function showState(state, data = {}) {
-    // Hide all main elements and the tooltip on every state change
     loadingIndicator.classList.add('hidden');
     contentDisplay.classList.add('hidden');
     errorMessage.classList.add('hidden');
@@ -143,7 +142,7 @@ adaptedTextElement.addEventListener('mouseout', (event) => {
 });
 
 // Set the initial state when the panel first opens
-adaptedTextElement.innerHTML = '<p>Please wait...</p>';
+adaptedTextElement.innerHTML = '<p>Select text on a page and right-click to get started.</p>';
 vocabButton.disabled = true;
 levelDownButton.disabled = true;
 undoButton.disabled = true;
