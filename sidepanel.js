@@ -88,8 +88,7 @@ vocabButton.addEventListener('click', () => {
 levelDownButton.addEventListener('click', () => {
     chrome.storage.session.get('originalText', (result) => {
         if (result.originalText) {
-            // This now sends a message that the background script is expecting
-            chrome.runtime.sendMessage({ type: 'adapt-text', action: 'simpler' });
+            processText(result.originalText, 'simpler');
         }
     });
 });
@@ -125,7 +124,7 @@ adaptedTextElement.addEventListener('mouseout', (event) => {
     }
 });
 
-adaptedTextElement.innerHTML = '<p>Select text on a page and right-click to get started.</p>';
+adaptedTextElement.innerHTML = '<p>Please wait...</p>';
 vocabButton.disabled = true;
 levelDownButton.disabled = true;
 undoButton.disabled = true;
