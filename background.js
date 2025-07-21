@@ -1,4 +1,5 @@
 const API_URL = "https://monkfish-app-wbxiw.ondigitalocean.app";
+let lastActionData = null;
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
@@ -10,11 +11,8 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === "adapt-text" && info.selectionText) {
-    // Store the text and open the panel. The side panel will request the text when it's ready.
-    chrome.storage.session.set({ 
-        initialText: info.selectionText, 
-        adaptationHistory: [] 
-    });
+    chrome.storage.session.set({ adaptationHistory: [] });
+    lastActionData = { type: 'process-initial-text', text: info.selectionText, tabId: tab.id };
     chrome.sidePanel.open({ tabId: tab.id });
   }
 });
@@ -23,13 +21,12 @@ async function sendMessageToSidePanel(message) {
   try {
     await chrome.runtime.sendMessage(message);
   } catch (error) {
-    console.warn("Could not send message to side panel.", error);
+    console.warn("Side panel not open or ready. Message not sent.", error);
   }
 }
 
-async function processText(text, action) {
+async function processText(text, action, tabId) {
   await sendMessageToSidePanel({ type: 'loading' });
-
   try {
     const requestBody = { text, action };
     const sessionData = await chrome.storage.session.get(['currentLexile']);
@@ -71,7 +68,6 @@ async function processText(text, action) {
         currentLexile: data.currentLexile,
         adaptationHistory: history
     });
-
   } catch (error) {
     let friendlyMessage = error.message;
     if (error.message.includes("413")) {
@@ -103,13 +99,11 @@ async function processVocab(text, currentLexile) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.type === 'process-initial-text') {
-        chrome.storage.session.get('initialText', (result) => {
-            if (result.initialText) {
-                processText(result.initialText, 'initial');
-                chrome.storage.session.remove('initialText'); // Clean up after use
-            }
-        });
+    if (message.type === 'sidepanel-ready' && lastActionData) {
+        if (lastActionData.type === 'process-initial-text') {
+            processText(lastActionData.text, 'initial', lastActionData.tabId);
+            lastActionData = null;
+        }
     } else if (message.type === 'adapt-text') {
         if (message.action === 'undo') {
             chrome.storage.session.get(['adaptationHistory'], (result) => {
@@ -130,8 +124,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     });
                 }
             });
-        } else { // Handles "Simpler"
-            chrome.storage.session.get('originalText', (result) => {
+        } else {
+            chrome.storage.session.get(['originalText'], (result) => {
                 if (result.originalText) {
                     processText(result.originalText, 'simpler');
                 }
