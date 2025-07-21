@@ -59,7 +59,6 @@ async function processText(text, action) {
     }
     history.push({ content: data.adaptedText, lexile: data.currentLexile });
 
-    // The result message now includes the dictionary, which the side panel can use or ignore.
     await sendMessageToSidePanel({ 
         type: 'result', 
         content: data.adaptedText,
@@ -104,7 +103,6 @@ async function processVocab(text, currentLexile) {
     }
 }
 
-// This is the updated, correct message listener
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'adapt-text') {
         if (message.action === 'undo') {
@@ -117,11 +115,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                         adaptationHistory: history,
                         currentLexile: prevState.lexile
                     }, () => {
-                        // When undoing, send a result message with an empty dictionary
                         sendMessageToSidePanel({
                             type: 'result',
                             content: prevState.content,
-                            dictionary: {},
+                            dictionary: {}, // Undo clears dictionary words
                             atMinimum: false,
                             historyCount: history.length
                         });
@@ -129,7 +126,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 }
             });
         } else { // Handles "Simpler"
-            chrome.storage.session.get(['originalText'], (result) => {
+            chrome.storage.session.get('originalText', (result) => {
                 if (result.originalText) {
                     processText(result.originalText, 'simpler');
                 }
