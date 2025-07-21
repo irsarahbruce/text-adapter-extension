@@ -107,6 +107,7 @@ copyButton.addEventListener('click', () => {
     }).catch(err => console.error('Failed to copy text: ', err));
 });
 
+// --- REPLACE the existing mouseover listener with this new version ---
 adaptedTextElement.addEventListener('mouseover', (event) => {
     if (event.target.classList.contains('definable-word')) {
         const word = event.target.textContent;
@@ -117,7 +118,9 @@ adaptedTextElement.addEventListener('mouseover', (event) => {
         const wordRect = event.target.getBoundingClientRect();
         const mainRect = mainContentArea.getBoundingClientRect();
 
-        const topPosition = wordRect.top - mainRect.top + mainContentArea.scrollTop + wordRect.height;
+        // This new, more reliable logic calculates the position relative
+        // to the visible area of the main content box.
+        const topPosition = wordRect.top - mainRect.top + wordRect.height;
         const leftPosition = wordRect.left - mainRect.left;
 
         tooltip.style.left = `${leftPosition}px`;
