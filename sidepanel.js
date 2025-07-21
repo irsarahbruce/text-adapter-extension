@@ -1,5 +1,17 @@
 document.addEventListener('DOMContentLoaded', function() {
-  document.getElementById('tooltip').classList.add('hidden');
+  // When the panel opens, it takes control.
+  chrome.storage.session.get('initialText', (result) => {
+    if (result.initialText) {
+      // Tell background to process the text we just stored.
+      chrome.runtime.sendMessage({ 
+          type: 'process-text', 
+          text: result.initialText, 
+          action: 'initial' 
+      });
+      // Clear the initial text so this doesn't run again on the same panel instance.
+      chrome.storage.session.remove('initialText');
+    }
+  });
 });
 
 const loadingIndicator = document.getElementById('loading');
@@ -25,7 +37,7 @@ function showState(state, data = {}) {
     vocabButton.disabled = true;
 
     if (state === 'loading') {
-        contentDisplay.classList.remove('hidden'); 
+        contentDisplay.classList.remove('hidden');
         loadingIndicator.classList.remove('hidden');
     } else if (state === 'error') {
         errorText.innerHTML = `<strong class="font-bold">Error:</strong> ${data.message}`;
@@ -52,7 +64,7 @@ function applyDictionary(text, dictionary) {
     const sortedWords = Object.keys(dictionary).sort((a, b) => b.length - a.length);
 
     for (const word of sortedWords) {
-        const regex = new RegExp(`\\b(${word})\\b(?![^<]*?>)`, 'gi');
+        const regex = new RegExp(`\x5Cb(${word})\x5Cb(?![^<]*?>)`, 'gi');
         const definition = dictionary[word];
         text = text.replace(regex, `<span class="definable-word" data-definition="${definition}">$1</span>`);
     }
@@ -79,17 +91,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 });
 
-vocabButton.addEventListener('click', () => {
-    const currentText = adaptedTextElement.innerHTML;
-    chrome.runtime.sendMessage({ type: 'get-vocab', text: currentText });
-});
-
 levelDownButton.addEventListener('click', () => {
-    chrome.runtime.sendMessage({ type: 'adapt-text', action: 'simpler' });
+    chrome.storage.session.get('originalText', (result) => {
+        if (result.originalText) {
+            chrome.runtime.sendMessage({ 
+                type: 'process-text', 
+                text: result.originalText, 
+                action: 'simpler' 
+            });
+        }
+    });
 });
 
 undoButton.addEventListener('click', () => {
-    chrome.runtime.sendMessage({ type: 'adapt-text', action: 'undo' });
+    chrome.runtime.sendMessage({ type: 'undo' });
+});
+
+vocabButton.addEventListener('click', () => {
+    const currentText = adaptedTextElement.innerHTML;
+    chrome.runtime.sendMessage({ type: 'get-vocab', text: currentText });
 });
 
 copyButton.addEventListener('click', () => {
@@ -119,7 +139,7 @@ adaptedTextElement.addEventListener('mouseout', (event) => {
     }
 });
 
-adaptedTextElement.innerHTML = '<p>Please wait...</p>';
+adaptedTextElement.innerHTML = '<p>Select text on a page and right-click to get started.</p>';
 vocabButton.disabled = true;
 levelDownButton.disabled = true;
 undoButton.disabled = true;
