@@ -25,6 +25,8 @@ function showState(state, data = {}) {
     if (state === 'loading') {
         contentDisplay.classList.remove('hidden'); 
         loadingIndicator.classList.remove('hidden');
+        // This is the new line that sets the text during loading
+        adaptedTextElement.innerHTML = '<p>Please wait...</p>';
     } else if (state === 'error') {
         errorText.innerHTML = `<strong class="font-bold">Error:</strong> ${data.message}`;
         errorMessage.classList.remove('hidden');
@@ -105,18 +107,15 @@ copyButton.addEventListener('click', () => {
     }).catch(err => console.error('Failed to copy text: ', err));
 });
 
-// Replaced mouseover/mouseout with a single click listener
 adaptedTextElement.addEventListener('click', (event) => {
     if (event.target.classList.contains('definable-word')) {
         const existingDefinition = document.querySelector('.definition-inline');
         
-        // If the user clicks the same word again, just close the definition
         if (existingDefinition && existingDefinition.previousElementSibling === event.target) {
             existingDefinition.remove();
             return;
         }
 
-        // If any other definition is open, remove it
         if (existingDefinition) {
             existingDefinition.remove();
         }
@@ -124,17 +123,16 @@ adaptedTextElement.addEventListener('click', (event) => {
         const word = event.target.textContent;
         const definition = event.target.getAttribute('data-definition');
 
-        // Create the new definition element
         const definitionEl = document.createElement('div');
         definitionEl.className = 'definition-inline';
         definitionEl.innerHTML = `<strong class="font-bold">${word}:</strong> ${definition}`;
         
-        // Insert the definition right after the word
         event.target.after(definitionEl);
     }
 });
 
-adaptedTextElement.innerHTML = '<p>Select text on a page and right-click to get started.</p>';
+// This line sets the initial text when the panel first opens
+adaptedTextElement.innerHTML = '<p>Please wait...</p>';
 vocabButton.disabled = true;
 levelDownButton.disabled = true;
 undoButton.disabled = true;
