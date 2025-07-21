@@ -8,15 +8,15 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
-// This is now much simpler.
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === "adapt-text" && info.selectionText) {
-    // Just store the text and open the panel. That's it.
-    chrome.storage.session.set({ 
-        initialText: info.selectionText, 
-        adaptationHistory: [] 
-    });
+    chrome.storage.session.set({ adaptationHistory: [] });
     chrome.sidePanel.open({ tabId: tab.id });
+    
+    // Revert to the simple delay, which is more reliable than a complex handshake
+    setTimeout(() => {
+      processText(info.selectionText, 'initial');
+    }, 300);
   }
 });
 
@@ -63,6 +63,7 @@ async function processText(text, action) {
     await sendMessageToSidePanel({ 
         type: 'result', 
         content: data.adaptedText,
+        dictionary: data.dictionary,
         atMinimum: data.atMinimum,
         historyCount: history.length
     });
@@ -103,31 +104,40 @@ async function processVocab(text, currentLexile) {
     }
 }
 
-// The background script now just waits for commands from the side panel.
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.type === 'process-text') {
-        processText(message.text, message.action);
+    if (message.type === 'adapt-text') {
+        if (message.action === 'undo') {
+            chrome.storage.session.get(['adaptationHistory'], (result) => {
+                let history = result.adaptationHistory || [];
+                if (history.length > 1) {
+                    history.pop();
+                    const prevState = history[history.length - 1];
+                    chrome.storage.session.set({
+                        adaptationHistory: history,
+                        currentLexile: prevState.lexile
+                    }, () => {
+                        sendMessageToSidePanel({
+                            type: 'result',
+                            content: prevState.content,
+                            atMinimum: false,
+                            historyCount: history.length
+                        });
+                    });
+                }
+            });
+        } else { // Handles "Simpler"
+            chrome.storage.session.get('originalText', (result) => {
+                if (result.originalText) {
+                    processText(result.originalText, 'simpler');
+                }
+            });
+        }
     } else if (message.type === 'get-vocab') {
         chrome.storage.session.get(['currentLexile'], (result) => {
-            processVocab(message.text, result.currentLexile || 1000);
-        });
-    } else if (message.type === 'undo') {
-        chrome.storage.session.get(['adaptationHistory'], (result) => {
-            let history = result.adaptationHistory || [];
-            if (history.length > 1) {
-                history.pop();
-                const prevState = history[history.length - 1];
-                chrome.storage.session.set({
-                    adaptationHistory: history,
-                    currentLexile: prevState.lexile
-                }, () => {
-                    sendMessageToSidePanel({
-                        type: 'result',
-                        content: prevState.content,
-                        atMinimum: false,
-                        historyCount: history.length
-                    });
-                });
+            if (result.currentLexile) {
+                processVocab(message.text, result.currentLexile);
+            } else {
+                processVocab(message.text, 1000); 
             }
         });
     }
