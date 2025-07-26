@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "QuickRewriter",
-  "version": "1.0",
+  "version": "1.1",
   "description": "Simplifies and rephrases web content for clarity and accessibility.",
   "permissions": [
     "activeTab",
