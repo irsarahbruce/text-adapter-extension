@@ -55,7 +55,9 @@ async function processText(text, action) {
     let history = historyResult.adaptationHistory || [];
 
     if (action === 'initial') {
-        history = [{ content: `<p>${text}</p>`, lexile: data.currentLexile }];
+        // The original text's lexile is the level *before* the first simplification.
+        // The API defaults to 1200 if no lexile is provided.
+        history = [{ content: `<p>${text}</p>`, lexile: 1200 }];
     }
     history.push({ content: data.adaptedText, lexile: data.currentLexile });
 
