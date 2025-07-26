@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', function() {
-  document.getElementById('tooltip').classList.add('hidden');
+    // No startup logic needed here anymore
 });
 
 const loadingIndicator = document.getElementById('loading');
@@ -11,34 +11,26 @@ const levelDownButton = document.getElementById('level-down');
 const undoButton = document.getElementById('undo-button');
 const copyButton = document.getElementById('copy-text');
 const vocabButton = document.getElementById('vocab-button');
-const tooltip = document.getElementById('tooltip');
 
 function showState(state, data = {}) {
     loadingIndicator.classList.add('hidden');
     contentDisplay.classList.add('hidden');
     errorMessage.classList.add('hidden');
-    tooltip.classList.add('hidden');
     
-    // Disable all buttons by default
     levelDownButton.disabled = true;
     undoButton.disabled = true;
     copyButton.disabled = true;
     vocabButton.disabled = true;
 
     if (state === 'loading') {
-        // Only clear the text if we're not preserving it (e.g., for vocab)
-        if (!data.preserveContent) {
-            adaptedTextElement.innerHTML = '<p>Please wait...</p>';
-        }
-        contentDisplay.classList.remove('hidden');
+        contentDisplay.classList.remove('hidden'); 
         loadingIndicator.classList.remove('hidden');
+        // NOTE: The line that cleared the text is removed, fixing the bug.
     } else if (state === 'error') {
         errorText.innerHTML = `<strong class="font-bold">Error:</strong> ${data.message}`;
         errorMessage.classList.remove('hidden');
     } else if (state === 'result') {
         contentDisplay.classList.remove('hidden');
-        
-        // Correctly re-enable all necessary buttons
         copyButton.disabled = false;
         vocabButton.disabled = false;
         
@@ -63,7 +55,7 @@ function applyDictionary(text, dictionary) {
     let newText = cleanText;
     for (const word of sortedWords) {
         const regex = new RegExp(`\\b(${word})\\b(?![^<]*?>)`, 'gi');
-        const definition = dictionary[word];
+        const definition = dictionary[word].replace(/"/g, '&quot;'); // Escape quotes for the attribute
         newText = newText.replace(regex, `<span class="definable-word" data-definition="${definition}">$1</span>`);
     }
     return newText;
@@ -91,8 +83,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 vocabButton.addEventListener('click', () => {
-const currentText = adaptedTextElement.textContent;
-  chrome.runtime.sendMessage({ type: 'get-vocab', text: currentText });
+    // Send clean text content, not HTML, to the API for reliability.
+    const currentText = adaptedTextElement.textContent;
+    chrome.runtime.sendMessage({ type: 'get-vocab', text: currentText });
 });
 
 levelDownButton.addEventListener('click', () => {
@@ -120,19 +113,16 @@ adaptedTextElement.addEventListener('click', (event) => {
     if (event.target.classList.contains('definable-word')) {
         const nextEl = event.target.nextElementSibling;
 
-        // If the definition is already showing for this word, remove it and exit.
         if (nextEl && nextEl.classList.contains('definition-inline')) {
             nextEl.remove();
             return;
         }
 
-        // Remove any other open definitions to keep the view clean.
         const existingDef = adaptedTextElement.querySelector('.definition-inline');
         if (existingDef) {
             existingDef.remove();
         }
 
-        // Create and insert the new definition box.
         const word = event.target.textContent;
         const definition = event.target.getAttribute('data-definition');
         const definitionBox = document.createElement('span');
