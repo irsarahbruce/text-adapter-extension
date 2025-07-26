@@ -28,8 +28,7 @@ async function sendMessageToSidePanel(message) {
 }
 
 async function processText(text, action) {
-  await sendMessageToSidePanel({ type: 'loading' });
-
+await sendMessageToSidePanel({ type: 'loading', preserveContent: true });
   try {
     const requestBody = { text, action };
     const sessionData = await chrome.storage.session.get(['currentLexile']);
