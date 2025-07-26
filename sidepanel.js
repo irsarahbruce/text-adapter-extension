@@ -26,9 +26,12 @@ function showState(state, data = {}) {
     vocabButton.disabled = true;
 
     if (state === 'loading') {
-        contentDisplay.classList.remove('hidden'); 
+        // Only clear the text if we're not preserving it (e.g., for vocab)
+        if (!data.preserveContent) {
+            adaptedTextElement.innerHTML = '<p>Please wait...</p>';
+        }
+        contentDisplay.classList.remove('hidden');
         loadingIndicator.classList.remove('hidden');
-        adaptedTextElement.innerHTML = '<p>Please wait...</p>';
     } else if (state === 'error') {
         errorText.innerHTML = `<strong class="font-bold">Error:</strong> ${data.message}`;
         errorMessage.classList.remove('hidden');
