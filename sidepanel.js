@@ -91,8 +91,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 vocabButton.addEventListener('click', () => {
-    const currentText = adaptedTextElement.innerHTML;
-    chrome.runtime.sendMessage({ type: 'get-vocab', text: currentText });
+const currentText = adaptedTextElement.textContent;
+  chrome.runtime.sendMessage({ type: 'get-vocab', text: currentText });
 });
 
 levelDownButton.addEventListener('click', () => {
@@ -108,7 +108,7 @@ undoButton.addEventListener('click', () => {
 });
 
 copyButton.addEventListener('click', () => {
-    const textToCopy = adaptedTextElement.textContent;
+    const textToCopy = `${adaptedTextElement.textContent}\n\nRewritten by QuickRewriter`;
     navigator.clipboard.writeText(textToCopy).then(() => {
         const originalText = copyButton.textContent;
         copyButton.textContent = 'Copied!';
