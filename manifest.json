@@ -15,7 +15,5 @@
   "side_panel": {
     "default_path": "sidepanel.html"
   },
-  "host_permissions": [
-    "https://monkfish-app-wbxiw.ondigitalocean.app/*"
-  ]
+  "host_permissions": [ "https://api.quickrewriter.com/*" ]
 }
