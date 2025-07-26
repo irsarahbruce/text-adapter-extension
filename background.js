@@ -1,4 +1,4 @@
-const API_URL = "https://monkfish-app-wbxiw.ondigitalocean.app";
+const API_URL = "https://api.quickrewriter.com";
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
