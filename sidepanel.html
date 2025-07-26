@@ -17,10 +17,27 @@
         }
 
         .definable-word {
-            background-color: #e0e7ff;
+            background-color: #e0e7ff; /* indigo-100 */
             cursor: pointer;
             border-radius: 4px;
             padding: 1px 3px;
+            transition: background-color 0.2s;
+        }
+
+        .definable-word:hover {
+            background-color: #c7d2fe; /* indigo-200 */
+        }
+        
+        .definition-inline {
+            display: block;
+            padding: 8px 12px;
+            margin-left: 1rem;
+            margin-top: 4px;
+            margin-bottom: 8px;
+            background-color: #f1f5f9; /* slate-100 */
+            border-left: 3px solid #64748b; /* slate-500 */
+            border-radius: 4px;
+            font-size: 1.25rem; /* Matches the main text size */
         }
         
         /* New style for the inline definition box */
