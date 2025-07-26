@@ -39,19 +39,6 @@
             border-radius: 4px;
             font-size: 1.25rem; /* Matches the main text size */
         }
-        
-        /* New style for the inline definition box */
-        .definition-inline {
-            display: block;
-            padding: 8px 12px;
-            margin-left: 1rem;
-            margin-top: 4px;
-            margin-bottom: 8px;
-            background-color: #f1f5f9; /* slate-100 */
-            border-left: 3px solid #64748b; /* slate-500 */
-            border-radius: 4px;
-            font-size: 1rem; /* Slightly smaller for contrast */
-        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 p-4">
@@ -61,8 +48,10 @@
             <h1 class="text-lg font-bold text-slate-700">QuickRewritten Text</h1>
         </header>
 
-        <main class="flex-grow mt-4 overflow-y-auto relative">
-            <div id="loading" class="flex justify-center items-center h-full hidden">
+        <!-- UPDATED: Added relative positioning and a minimum height -->
+        <main class="flex-grow mt-4 overflow-y-auto relative" style="min-height: 200px;">
+            <!-- UPDATED: Changed to be an absolute positioned overlay -->
+            <div id="loading" class="absolute inset-0 flex justify-center items-center bg-slate-50 bg-opacity-75 hidden">
                 <div class="h-10 w-10 border-4 border-slate-200 border-b-slate-500 rounded-full animate-spin"></div>
             </div>
             <div id="error-message" class="bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded-lg hidden">
@@ -71,20 +60,7 @@
             <div id="content-display" class="prose prose-slate max-w-none">
                 <div id="adapted-text"></div>
             </div>
-            <main class="flex-grow mt-4 overflow-y-auto relative">
-            <div id="loading" class="flex justify-center items-center h-full hidden">
-                <div class="h-10 w-10 border-4 border-slate-200 border-b-slate-500 rounded-full animate-spin"></div>
-            </div>
-            <div id="error-message" class="bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded-lg hidden">
-                <span id="error-text" class="block sm:inline"></span>
-            </div>
-            <div id="content-display" class="prose prose-slate max-w-none">
-                <div id="adapted-text"></div>
-            </div>
-            
-            <div id="tooltip" class="absolute z-10 p-2 text-sm bg-slate-900 text-white rounded-md shadow-lg hidden max-w-xs"></div>
         </main>
-            </main>
 
         <footer class="pt-4 mt-4 border-t border-slate-200">
             <div class="grid grid-cols-2 gap-2">
