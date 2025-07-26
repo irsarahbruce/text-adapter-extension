@@ -116,28 +116,29 @@ copyButton.addEventListener('click', () => {
     }).catch(err => console.error('Failed to copy text: ', err));
 });
 
-adaptedTextElement.addEventListener('mouseover', (event) => {
+adaptedTextElement.addEventListener('click', (event) => {
     if (event.target.classList.contains('definable-word')) {
+        const nextEl = event.target.nextElementSibling;
+
+        // If the definition is already showing for this word, remove it and exit.
+        if (nextEl && nextEl.classList.contains('definition-inline')) {
+            nextEl.remove();
+            return;
+        }
+
+        // Remove any other open definitions to keep the view clean.
+        const existingDef = adaptedTextElement.querySelector('.definition-inline');
+        if (existingDef) {
+            existingDef.remove();
+        }
+
+        // Create and insert the new definition box.
         const word = event.target.textContent;
         const definition = event.target.getAttribute('data-definition');
-        tooltip.innerHTML = `<strong class="font-bold">${word}:</strong> ${definition}`;
-        
-        const mainContentArea = document.querySelector('main');
-        const wordRect = event.target.getBoundingClientRect();
-        const mainRect = mainContentArea.getBoundingClientRect();
-
-        const topPosition = wordRect.top - mainRect.top + mainContentArea.scrollTop + wordRect.height;
-        const leftPosition = wordRect.left - mainRect.left;
-
-        tooltip.style.left = `${leftPosition}px`;
-        tooltip.style.top = `${topPosition}px`;
-        tooltip.classList.remove('hidden');
-    }
-});
-
-adaptedTextElement.addEventListener('mouseout', (event) => {
-    if (event.target.classList.contains('definable-word')) {
-        tooltip.classList.add('hidden');
+        const definitionBox = document.createElement('span');
+        definitionBox.className = 'definition-inline';
+        definitionBox.innerHTML = `<strong class="font-bold">${word}:</strong> ${definition}`;
+        event.target.after(definitionBox);
     }
 });
 
