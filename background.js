@@ -1,7 +1,6 @@
 const API_URL = "https://api.quickrewriter.com";
 
 chrome.runtime.onInstalled.addListener(() => {
-  // Create a unique user ID on first installation for analytics
   chrome.storage.local.get('userId', (result) => {
     if (!result.userId) {
       const newUserId = self.crypto.randomUUID();
@@ -16,34 +15,29 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
-// NEW FUNCTION: To update the user's preferred Lexile in the database
-async function updateUserPreference(userId, preferredLexile) {
-    if (!userId || !preferredLexile) return;
+// NEW FUNCTION: To report the end of a session and the final Lexile score
+async function reportSessionEnd(userId, finalLexile) {
+    if (!userId || !finalLexile) return;
     
-    // We don't need to wait for this to finish.
-    // Send it in the background.
-    fetch(`${API_URL}/user-preference`, {
+    fetch(`${API_URL}/session-end`, {
         method: 'POST',
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, preferredLexile }),
-    }).catch(err => console.error("Failed to update user preference:", err));
+        body: JSON.stringify({ userId, finalLexile }),
+    }).catch(err => console.error("Failed to report session end:", err));
 }
 
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId === "adapt-text" && info.selectionText) {
     
-    // NEW LOGIC: When a user starts a new rewrite,
-    // the previous session's final Lexile is their preference.
     const { userId } = await chrome.storage.local.get('userId');
     const { currentLexile } = await chrome.storage.session.get('currentLexile');
     
-    // If we have a user and a previous Lexile, update the preference.
+    // When a new rewrite starts, report the previous session's final score.
     if (userId && currentLexile) {
-        updateUserPreference(userId, currentLexile);
+        reportSessionEnd(userId, currentLexile);
     }
 
-    // SET THE FLAG HERE, BEFORE OPENING THE PANEL
     chrome.storage.session.set({ isProcessing: true, adaptationHistory: [] });
     
     chrome.sidePanel.open({ tabId: tab.id });
@@ -96,7 +90,7 @@ async function processText(text, action) {
     let history = historyResult.adaptationHistory || [];
 
     if (action === 'initial') {
-        history = [{ content: `<p>${text}</p>`, lexile: 1200 }];
+        history = [{ content: `<p>${text}</p>`, lexile: data.originalLexile }];
     }
     history.push({ content: data.adaptedText, lexile: data.currentLexile });
 
