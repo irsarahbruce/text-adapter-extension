@@ -16,8 +16,33 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
-chrome.contextMenus.onClicked.addListener((info, tab) => {
+// NEW FUNCTION: To update the user's preferred Lexile in the database
+async function updateUserPreference(userId, preferredLexile) {
+    if (!userId || !preferredLexile) return;
+    
+    // We don't need to wait for this to finish.
+    // Send it in the background.
+    fetch(`${API_URL}/user-preference`, {
+        method: 'POST',
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, preferredLexile }),
+    }).catch(err => console.error("Failed to update user preference:", err));
+}
+
+
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId === "adapt-text" && info.selectionText) {
+    
+    // NEW LOGIC: When a user starts a new rewrite,
+    // the previous session's final Lexile is their preference.
+    const { userId } = await chrome.storage.local.get('userId');
+    const { currentLexile } = await chrome.storage.session.get('currentLexile');
+    
+    // If we have a user and a previous Lexile, update the preference.
+    if (userId && currentLexile) {
+        updateUserPreference(userId, currentLexile);
+    }
+
     // SET THE FLAG HERE, BEFORE OPENING THE PANEL
     chrome.storage.session.set({ isProcessing: true, adaptationHistory: [] });
     
@@ -38,8 +63,6 @@ async function sendMessageToSidePanel(message) {
 }
 
 async function processText(text, action) {
-  // We no longer need to send the 'loading' message from here, 
-  // as the side panel will handle it on its own.
   try {
     const { userId } = await chrome.storage.local.get('userId');
     const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
