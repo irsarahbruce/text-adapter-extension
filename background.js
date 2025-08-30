@@ -15,7 +15,6 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
-// NEW FUNCTION: To report the end of a session and the final Lexile score
 async function reportSessionEnd(userId, finalLexile) {
     if (!userId || !finalLexile) return;
     
@@ -26,25 +25,33 @@ async function reportSessionEnd(userId, finalLexile) {
     }).catch(err => console.error("Failed to report session end:", err));
 }
 
-
-chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+// MODIFIED LISTENER: All immediate actions are now at the top, before any async/await.
+chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === "adapt-text" && info.selectionText) {
     
-    const { userId } = await chrome.storage.local.get('userId');
-    const { currentLexile } = await chrome.storage.session.get('currentLexile');
-    
-    // When a new rewrite starts, report the previous session's final score.
-    if (userId && currentLexile) {
-        reportSessionEnd(userId, currentLexile);
-    }
-
+    // --- Immediate Actions ---
+    // 1. Set the processing flag
     chrome.storage.session.set({ isProcessing: true, adaptationHistory: [] });
-    
+    // 2. Open the side panel IMMEDIATELY
     chrome.sidePanel.open({ tabId: tab.id });
-    
+    // 3. Start the text processing timer
     setTimeout(() => {
       processText(info.selectionText, 'initial');
     }, 300);
+
+    // --- Background/Delayed Actions ---
+    // This async function will run in the background without blocking the panel opening.
+    const handlePreferenceUpdate = async () => {
+      const { userId } = await chrome.storage.local.get('userId');
+      const { currentLexile } = await chrome.storage.session.get('currentLexile');
+      
+      if (userId && currentLexile) {
+          reportSessionEnd(userId, currentLexile);
+      }
+    };
+    
+    // Call the async function to run without waiting for it to finish
+    handlePreferenceUpdate();
   }
 });
 
