@@ -1,5 +1,16 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // No startup logic needed here anymore
+    // Check if we should be in a loading state as soon as the panel opens
+    chrome.storage.session.get('isProcessing', (result) => {
+        if (result.isProcessing) {
+            // Show the loading spinner immediately
+            showState('loading');
+            // Clear the flag so it doesn't happen again on a simple reopen
+            chrome.storage.session.set({ isProcessing: false });
+        } else {
+            // If not processing, show the default initial state
+            setInitialState();
+        }
+    });
 });
 
 const loadingIndicator = document.getElementById('loading');
@@ -25,7 +36,6 @@ function showState(state, data = {}) {
     if (state === 'loading') {
         contentDisplay.classList.remove('hidden'); 
         loadingIndicator.classList.remove('hidden');
-        // NOTE: The line that cleared the text is removed, fixing the bug.
     } else if (state === 'error') {
         errorText.innerHTML = `<strong class="font-bold">Error:</strong> ${data.message}`;
         errorMessage.classList.remove('hidden');
@@ -62,9 +72,9 @@ function applyDictionary(text, dictionary) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.type === 'loading') {
-        showState('loading');
-    } else if (message.type === 'error') {
+    // The 'loading' message from background.js is no longer needed here,
+    // but we keep the listener for other messages.
+    if (message.type === 'error') {
         showState('error', { message: message.message });
     } else if (message.type === 'result') {
         const textWithDefinitions = applyDictionary(message.content, message.dictionary);
@@ -83,7 +93,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 vocabButton.addEventListener('click', () => {
-    // Send clean text content, not HTML, to the API for reliability.
     const currentText = adaptedTextElement.textContent;
     chrome.runtime.sendMessage({ type: 'get-vocab', text: currentText });
 });
@@ -132,9 +141,10 @@ adaptedTextElement.addEventListener('click', (event) => {
     }
 });
 
-// Set the initial state when the panel first opens
-adaptedTextElement.innerHTML = '<p>Select text on a page and right-click to get started.</p>';
-vocabButton.disabled = true;
-levelDownButton.disabled = true;
-undoButton.disabled = true;
-copyButton.disabled = true;
+function setInitialState() {
+    adaptedTextElement.innerHTML = '<p>Select text on a page and right-click to get started.</p>';
+    vocabButton.disabled = true;
+    levelDownButton.disabled = true;
+    undoButton.disabled = true;
+    copyButton.disabled = true;
+}
