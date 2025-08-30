@@ -18,7 +18,9 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === "adapt-text" && info.selectionText) {
-    chrome.storage.session.set({ adaptationHistory: [] });
+    // SET THE FLAG HERE, BEFORE OPENING THE PANEL
+    chrome.storage.session.set({ isProcessing: true, adaptationHistory: [] });
+    
     chrome.sidePanel.open({ tabId: tab.id });
     
     setTimeout(() => {
@@ -36,7 +38,8 @@ async function sendMessageToSidePanel(message) {
 }
 
 async function processText(text, action) {
-await sendMessageToSidePanel({ type: 'loading', preserveContent: true });
+  // We no longer need to send the 'loading' message from here, 
+  // as the side panel will handle it on its own.
   try {
     const { userId } = await chrome.storage.local.get('userId');
     const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
@@ -70,8 +73,6 @@ await sendMessageToSidePanel({ type: 'loading', preserveContent: true });
     let history = historyResult.adaptationHistory || [];
 
     if (action === 'initial') {
-        // The original text's lexile is the level *before* the first simplification.
-        // The API defaults to 1200 if no lexile is provided.
         history = [{ content: `<p>${text}</p>`, lexile: 1200 }];
     }
     history.push({ content: data.adaptedText, lexile: data.currentLexile });
