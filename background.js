@@ -1,6 +1,14 @@
 const API_URL = "https://api.quickrewriter.com";
 
 chrome.runtime.onInstalled.addListener(() => {
+  // Create a unique user ID on first installation for analytics
+  chrome.storage.local.get('userId', (result) => {
+    if (!result.userId) {
+      const newUserId = self.crypto.randomUUID();
+      chrome.storage.local.set({ userId: newUserId });
+    }
+  });
+
   chrome.contextMenus.create({
     id: "adapt-text",
     title: "Rewrite with QuickRewriter",
@@ -30,7 +38,15 @@ async function sendMessageToSidePanel(message) {
 async function processText(text, action) {
 await sendMessageToSidePanel({ type: 'loading', preserveContent: true });
   try {
-    const requestBody = { text, action };
+    const { userId } = await chrome.storage.local.get('userId');
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+
+    const requestBody = { 
+        text, 
+        action,
+        userId: userId || null,
+        url: tab ? tab.url : null
+    };
     const sessionData = await chrome.storage.session.get(['currentLexile']);
     
     if (action !== 'initial') {
@@ -86,10 +102,20 @@ await sendMessageToSidePanel({ type: 'loading', preserveContent: true });
 async function processVocab(text, currentLexile) {
     await sendMessageToSidePanel({ type: 'loading' });
     try {
+        const { userId } = await chrome.storage.local.get('userId');
+        const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+
+        const requestBody = {
+            text,
+            currentLexile,
+            userId: userId || null,
+            url: tab ? tab.url : null
+        };
+
         const response = await fetch(`${API_URL}/vocab`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text, currentLexile }),
+            body: JSON.stringify(requestBody),
         });
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         
