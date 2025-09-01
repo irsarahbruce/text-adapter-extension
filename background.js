@@ -62,19 +62,21 @@ async function sendMessageToSidePanel(message) {
 }
 
 // Renamed function for the first adaptation
+// In background.js
+
 async function processInitialText(text, action) {
   try {
     const { userId } = await chrome.storage.local.get('userId');
     const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
 
-    // For the initial action, the body uses 'text', not 'originalText'
+    // CORRECTED: The key must be 'originalText'
     const requestBody = { 
-      originalText: text, // Use the correct key name
-      action: 'initial',
-      userId: userId || null,
-      url: tab ? tab.url : null
+        originalText: text, 
+        action: 'initial',
+        userId: userId || null,
+        url: tab ? tab.url : null
     };
-    
+
     const response = await fetch(`${API_URL}/adapt`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -88,23 +90,22 @@ async function processInitialText(text, action) {
 
     const data = await response.json();
     
-    // Initialize history with the original text and its calculated lexile from the API
+    // The original text for the history is now what the API confirms it received.
     const history = [
-        { content: `<p>${text}</p>`, lexile: data.originalLexile },
+        { content: `<p>${data.originalText}</p>`, lexile: 1200 }, // Use a placeholder lexile
         { content: data.adaptedText, lexile: data.currentLexile }
     ];
 
     await sendMessageToSidePanel({ 
         type: 'result', 
         content: data.adaptedText,
-        dictionary: data.dictionary || {},
         atMinimum: data.atMinimum,
         historyCount: history.length
     });
 
-    // Set all necessary session data for subsequent "simpler" clicks
+    // Store the state for the next "Simpler" click
     await chrome.storage.session.set({ 
-        originalText: data.originalText, // Store the original text returned by the API
+        originalText: data.originalText, 
         currentLexile: data.currentLexile,
         adaptationHistory: history
     });
