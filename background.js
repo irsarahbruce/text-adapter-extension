@@ -1,3 +1,5 @@
+// background.js
+
 const API_URL = "https://api.quickrewriter.com";
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -25,22 +27,19 @@ async function reportSessionEnd(userId, finalLexile) {
     }).catch(err => console.error("Failed to report session end:", err));
 }
 
-// MODIFIED LISTENER: All immediate actions are now at the top, before any async/await.
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === "adapt-text" && info.selectionText) {
     
     // --- Immediate Actions ---
-    // 1. Set the processing flag
     chrome.storage.session.set({ isProcessing: true, adaptationHistory: [] });
-    // 2. Open the side panel IMMEDIATELY
     chrome.sidePanel.open({ tabId: tab.id });
-    // 3. Start the text processing timer
+
+    // --- Delayed Actions ---
     setTimeout(() => {
-      processText(info.selectionText, 'initial');
+      // CORRECTED: Call the renamed function for the initial processing
+      processInitialText(info.selectionText, 'initial');
     }, 300);
 
-    // --- Background/Delayed Actions ---
-    // This async function will run in the background without blocking the panel opening.
     const handlePreferenceUpdate = async () => {
       const { userId } = await chrome.storage.local.get('userId');
       const { currentLexile } = await chrome.storage.session.get('currentLexile');
@@ -50,7 +49,6 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
       }
     };
     
-    // Call the async function to run without waiting for it to finish
     handlePreferenceUpdate();
   }
 });
@@ -63,23 +61,20 @@ async function sendMessageToSidePanel(message) {
   }
 }
 
-async function processText(text, action) {
+// Renamed function for the first adaptation
+async function processInitialText(text, action) {
   try {
     const { userId } = await chrome.storage.local.get('userId');
     const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
 
+    // For the initial action, the body uses 'text', not 'originalText'
     const requestBody = { 
         text, 
-        action,
+        action: 'initial', // Hardcode to initial for this function
         userId: userId || null,
         url: tab ? tab.url : null
     };
-    const sessionData = await chrome.storage.session.get(['currentLexile']);
     
-    if (action !== 'initial') {
-      requestBody.currentLexile = sessionData.currentLexile;
-    }
-
     const response = await fetch(`${API_URL}/adapt`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -93,24 +88,23 @@ async function processText(text, action) {
 
     const data = await response.json();
     
-    const historyResult = await chrome.storage.session.get(['adaptationHistory']);
-    let history = historyResult.adaptationHistory || [];
-
-    if (action === 'initial') {
-        history = [{ content: `<p>${text}</p>`, lexile: data.originalLexile }];
-    }
-    history.push({ content: data.adaptedText, lexile: data.currentLexile });
+    // Initialize history with the original text and its calculated lexile from the API
+    const history = [
+        { content: `<p>${text}</p>`, lexile: data.originalLexile },
+        { content: data.adaptedText, lexile: data.currentLexile }
+    ];
 
     await sendMessageToSidePanel({ 
         type: 'result', 
         content: data.adaptedText,
-        dictionary: data.dictionary,
+        dictionary: data.dictionary || {},
         atMinimum: data.atMinimum,
         historyCount: history.length
     });
 
+    // Set all necessary session data for subsequent "simpler" clicks
     await chrome.storage.session.set({ 
-        originalText: text, 
+        originalText: data.originalText, // Store the original text returned by the API
         currentLexile: data.currentLexile,
         adaptationHistory: history
     });
@@ -124,8 +118,56 @@ async function processText(text, action) {
   }
 }
 
+// New function for subsequent "Simpler" clicks
+async function processSimpler(originalText, currentLexile) {
+    try {
+        const { userId } = await chrome.storage.local.get('userId');
+        const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+
+        const requestBody = {
+            action: 'simplify', // Correct action for subsequent simplifications
+            originalText,
+            currentLexile,
+            userId: userId || null,
+            url: tab ? tab.url : null
+        };
+
+        const response = await fetch(`${API_URL}/adapt`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestBody),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        const historyResult = await chrome.storage.session.get(['adaptationHistory']);
+        let history = historyResult.adaptationHistory || [];
+        history.push({ content: data.adaptedText, lexile: data.currentLexile });
+
+        await sendMessageToSidePanel({ 
+            type: 'result', 
+            content: data.adaptedText,
+            atMinimum: data.atMinimum,
+            historyCount: history.length
+        });
+        
+        await chrome.storage.session.set({
+            currentLexile: data.currentLexile,
+            adaptationHistory: history,
+            originalText: data.originalText
+        });
+
+    } catch (error) {
+        await sendMessageToSidePanel({ type: 'error', message: error.message });
+    }
+}
+
 async function processVocab(text, currentLexile) {
-    await sendMessageToSidePanel({ type: 'loading' });
     try {
         const { userId } = await chrome.storage.local.get('userId');
         const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
@@ -165,12 +207,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     const prevState = history[history.length - 1];
                     chrome.storage.session.set({
                         adaptationHistory: history,
-                        currentLexile: prevState.lexile
+                        currentLexile: prevState.lexile,
+                        originalText: history[0].content.replace(/<p>|<\/p>/g, '')
                     }, () => {
                         sendMessageToSidePanel({
                             type: 'result',
                             content: prevState.content,
-                            dictionary: {}, // Undo clears dictionary words
+                            dictionary: {},
                             atMinimum: false,
                             historyCount: history.length
                         });
@@ -178,11 +221,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 }
             });
         } else { // Handles "Simpler"
-            chrome.storage.session.get('originalText', (result) => {
-                if (result.originalText) {
-                    processText(result.originalText, 'simpler');
-                }
-            });
+            if (message.originalText && message.currentLexile) {
+                processSimpler(message.originalText, message.currentLexile);
+            }
         }
     } else if (message.type === 'get-vocab') {
         chrome.storage.session.get(['currentLexile'], (result) => {
