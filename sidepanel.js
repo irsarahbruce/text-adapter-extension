@@ -97,10 +97,19 @@ vocabButton.addEventListener('click', () => {
     chrome.runtime.sendMessage({ type: 'get-vocab', text: currentText });
 });
 
+// In sidepanel.js
+
 levelDownButton.addEventListener('click', () => {
-    chrome.storage.session.get('originalText', (result) => {
-        if (result.originalText) {
-            chrome.runtime.sendMessage({ type: 'adapt-text', action: 'simpler' });
+    // Get ALL the data needed for the next API call
+    chrome.storage.session.get(['originalText', 'currentLexile'], (result) => {
+        if (result.originalText && result.currentLexile) {
+            // Pass the data in the message to background.js
+            chrome.runtime.sendMessage({ 
+                type: 'adapt-text', 
+                action: 'simpler',
+                originalText: result.originalText,
+                currentLexile: result.currentLexile
+            });
         }
     });
 });
