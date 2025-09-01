@@ -69,10 +69,10 @@ async function processInitialText(text, action) {
 
     // For the initial action, the body uses 'text', not 'originalText'
     const requestBody = { 
-        text, 
-        action: 'initial', // Hardcode to initial for this function
-        userId: userId || null,
-        url: tab ? tab.url : null
+      originalText: text, // Use the correct key name
+      action: 'initial',
+      userId: userId || null,
+      url: tab ? tab.url : null
     };
     
     const response = await fetch(`${API_URL}/adapt`, {
