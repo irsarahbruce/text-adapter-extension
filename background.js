@@ -64,6 +64,8 @@ async function sendMessageToSidePanel(message) {
 // Renamed function for the first adaptation
 // In background.js
 
+// In background.js
+
 async function processInitialText(text, action) {
   try {
     const { userId } = await chrome.storage.local.get('userId');
@@ -90,9 +92,8 @@ async function processInitialText(text, action) {
 
     const data = await response.json();
     
-    // The original text for the history is now what the API confirms it received.
     const history = [
-        { content: `<p>${data.originalText}</p>`, lexile: 1200 }, // Use a placeholder lexile
+        { content: `<p>${data.originalText}</p>`, lexile: 1200 },
         { content: data.adaptedText, lexile: data.currentLexile }
     ];
 
@@ -103,7 +104,6 @@ async function processInitialText(text, action) {
         historyCount: history.length
     });
 
-    // Store the state for the next "Simpler" click
     await chrome.storage.session.set({ 
         originalText: data.originalText, 
         currentLexile: data.currentLexile,
